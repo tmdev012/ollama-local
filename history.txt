@@ -1,0 +1,350 @@
+    1  chsh -s $(which zsh)
+    2  npm install -g spaceship-prompt
+    3  suo apt install npm
+    4  sudo apt install npm
+    5  # Install Starship\ncurl -sS https://starship.rs/install.sh | sh\n\n# Add to ~/.bashrc (or ~/.zshrc for ZSH)\necho 'eval "$(starship init bash)"' >> ~/.bashrc\nsource ~/.bashrc
+    6  chsh -s /bin/zsh
+    7  # Install Starship\ncurl -sS https://starship.rs/install.sh | sh\n\n# Add to ~/.bashrc (or ~/.zshrc for ZSH)\necho 'eval "$(starship init bash)"' >> ~/.bashrc\nsource ~/.bashrc
+    8  /bye
+    9  source ~/.zshrc
+   10  # SPACESHIP CONFIG\nSPACESHIP_PROMPT_ORDER=(\n  time          # Time stamps section\n  user          # Username section\n  dir           # Current directory section\n  host          # Hostname section\n  git           # Git section (git_branch + git_status)\n  package       # Package version\n  node          # Node.js section\n  ruby          # Ruby section\n  docker        # Docker section\n  aws           # Amazon Web Services section\n  venv          # virtualenv section\n  conda         # conda virtualenv section\n  pyenv         # Pyenv section\n  line_sep      # Line break\n  vi_mode       # Vi-mode indicator\n  jobs          # Background jobs indicator\n  exit_code     # Exit code section\n  char          # Prompt character\n)\n\nSPACESHIP_USER_SHOW=always\nSPACESHIP_PROMPT_ADD_NEWLINE=false\nSPACESHIP_CHAR_SYMBOL="➜"\nSPACESHIP_CHAR_SUFFIX=" "\n
+   11  ls ~/.oh-my-zsh/themes/ | grep spaceship
+   12  echo $SHELL
+   13  # Install Starship\ncurl -sS https://starship.rs/install.sh | sh\n\n# Add to ~/.bashrc (or ~/.zshrc for ZSH)\necho 'eval "$(starship init bash)"' >> ~/.bashrc\nsource ~/.bashrc
+   14  z
+   15  chsh -s $(which zsh)
+   16  bye/
+   17  /bye
+   18  tree
+   19  deepseek-check.sh\n
+   20  clear
+   21  mkdir kontakt_installer; cd kontakt_installer; cp Kontakt\ 6\ PortableKontaktPortable_v631.exe kontakt_installer; tree
+   22  cd -
+   23  cp '/home/tmdev012/Downloads/Kontakt 6 PortableKontaktPortable_v631.exe'  kontakt_installer
+   24  ls
+   25  cd kontakt_installer
+   26  tree
+   27  clear
+   28  cd --
+   29  cd Downloads
+   30  ls -la
+   31  dir
+   32  cd --
+   33  cd ollama-local
+   34  tree
+   35  ollama-chat.sh
+   36  aicode
+   37  cd ai-system-20260130_072001; ls
+   38  ai-orchestrator
+   39  uu
+   40  ai-general -i
+   41  ai-general --interactive
+   42  ai-orchestrator --interactive
+   43  cd ollama-local
+   44  ai-orchestrator --interactive
+   45  ai '^[[200~\n>>> execute last line for context : >>> write me a website of the year in1 scriopt use full capacity\n... I can provide you with a basic structure for a website, but please note that creating a fully functional and visually appealing website requires more than just a script. It would \n... involve designing and building the UI/UX, writing engaging content, setting up a hosting server, and integrating various features like databases, APIs, and third-party services.\n... \n... That being said, here's a basic example of what a "Website of the Year" award page might look like in HTML, CSS, and JavaScript:
+   46  ... 
+   47  ... ```html\n... <html>
+   48  ... <html lang="en">
+   49  ... <head>
+   50  ...     <meta charset="UTF-8">
+   51  ...     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   52  ...     <title>Website of the Year</title>
+   53  ...     <link rel="stylesheet" href="styles.css">
+   54  ... </head>
+   55  ... <body>
+   56  ...     < Header Section -->
+   57  ...     <header>
+   58  ...         <nav>
+   59  ...             <ul>
+   60  ...                 <li><a href="#about">About</a></li>
+   61  ...                 <li><a href="#features">Features</a></li>
+   62  ...                 <li><a href="#testimonials">Testimonials</a></li>
+   63  ...                 <li><a href="#contact">Contact</a></li>
+   64  ...             </ul>
+   65  ...         </nav>
+   66  ...     </header>
+   67  ... 
+   68  ...     < Hero Section -->
+   69  ...     <section id="hero">
+   70  ...         <h1>Website of the Year Award</h1>
+   71  ...         <p>This award is given to the best website of the year, chosen by our expert panel.</p>
+   72  ...         <button>Learn More</button>
+   73  ...     </section>
+   74  ... 
+   75  ...     < About Section -->
+   76  ...     <section id="about">
+   77  ...         <h2>About Us</h2>
+   78  ...         <p>We are a team of experts dedicated to recognizing and rewarding outstanding websites. Our mission is to inspire and educate the web community.</p>
+   79  ...         <img src="about-image.jpg" alt="About Image">
+   80  ...     </section>
+   81  ... 
+   82  ...     < Features Section -->
+   83  ...     <section id="features">
+   84  ...         <h2>Features</h2>
+   85  ...         <ul>
+   86  ...             <li><i class="fas fa-lock"></i> Secure and Trustworthy</li>
+   87  ...             <li><i class="fas fa-cog"></i> Customizable and Flexible</li>
+   88  ...             <li><i class="fas fa-rocket"></i> Fast and Scalable</li>
+   89  ...         </ul>
+   90  ...     </section>
+   91  ... 
+   92  ...     < Testimonials Section -->
+   93  ...     <section id="testimonials">
+   94  ...         <h2>What Our Winners Say</h2>
+   95  ...         <div class="testimonial">
+   96  ...             <p>"This award has been a game-changer for our website. It's helped us attract new customers and increase our online presence."</p>
+   97  ...             <span><i class="fas fa-quote-right"></i></span>
+   98  ...             <cite>Emily Chen, Website Owner</cite>
+   99  ...         </div>
+  100  ...         <div class="testimonial">
+  101  ...             <p>"I'm thrilled to be recognized as one of the best websites of the year. It's a testament to our hard work and dedication."</p>
+  102  ...             <span><i class="fas fa-quote-right"></i></span>
+  103  ...             <cite>John Doe, Website Owner</cite>
+  104  ...         </div>
+  105  ...     </section>
+  106  ... 
+  107  ...     < Contact Section -->
+  108  ...     <section id="contact">
+  109  ...         <h2>Get in Touch</h2>
+  110  ...         <form>
+  111  ...             <input type="text" name="name" placeholder="Name">
+  112  ...             <input type="email" name="email" placeholder="Email">
+  113  ...             <textarea name="message" rows="5" cols="20" placeholder="Message"></textarea>
+  114  ...             <button>Send Message</button>
+  115  ...         </form>
+  116  ...     </section>
+  117  ... 
+  118  ...     < Footer Section -->
+  119  ...     <footer>
+  120  ...         <p>&copy; 2023 Website of the Year. All rights reserved.</p>
+  121  ...         <ul>
+  122  ...             <li><a href="#">About Us</a></li>
+  123  ...             <li><a href="#">Terms and Conditions</a></li>
+  124  ...             <li><a href="#">Privacy Policy</a></li>
+  125  ...         </ul>
+  126  ...     </footer>
+  127  ... 
+  128  ...     < JavaScript Files -->
+  129  ...     <script src="https://kit.fontawesome.com/your-favicon-numeric-code.js"></script>
+  130  ...     <script src="script.js"></script>
+  131  ... </body>
+  132  ... </html>
+  133  ... ```\n... \n... And here's a basic example of what the CSS and JavaScript files might look like:\n... \n... ```css
+  134  ... /* styles.css */
+  135  ... 
+  136  ... * {
+  137  ...     box-sizing: border-box;
+  138  ...     margin: 0;
+  139  ...     padding: 0;
+  140  ... }
+  141  ... 
+  142  ... body {
+  143  ...     font-family: Arial, sans-serif;
+  144  ...     line-height: 1.6;
+  145  ...     color: #333;
+  146  ...     background-color: #f9f9f9;
+  147  ... }
+  148  ... 
+  149  ... header {
+  150  ...     background-color: #333;
+  151  ...     color: #fff;
+  152  ...     padding: 1em;
+  153  ...     text-align: center;
+  154  ... }
+  155  ... 
+  156  ... nav ul {
+  157  ...     list-style: none;
+  158  ...     margin: 0;
+  159  ...     padding: 0;
+  160  ...     display: flex;
+  161  ...     justify-content: space-between;
+  162  ... }
+  163  ... 
+  164  ... nav li {
+  165  ...     margin-right: 20px;
+  166  ... }
+  167  ... 
+  168  ... nav a {
+  169  ...     color: #fff;
+  170  ...     text-decoration: none;
+  171  ... }
+  172  ... 
+  173  ... .hero {
+  174  ...     background-image: linear-gradient(to bottom, #333, #555);
+  175  ...     height: 100vh;
+  176  ...     display: flex;
+  177  ...     justify-content: center;
+  178  ...     align-items: center;
+  179  ...     color: #fff;
+  180  ... }
+  181  ... 
+  182  ... .testimonial {
+  183  ...     background-color: #f9f9f9;
+  184  ...     padding: 20px;
+  185  ...     border-radius: 10px;
+  186  ...     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  187  ... }
+  188  ... 
+  189  ... .testimonial span {
+  190  ...     font-size: 24px;
+  191  ...     margin-bottom: 10px;
+  192  ... }
+  193  ... ```\n... \n... ```javascript
+  194  ... // script.js
+  195  ... 
+  196  ... const testimonial = document.querySelector('.testimonial');
+  197  ... 
+  198  ... testimonials.forEach((test) => {
+  199  ...     test.innerHTML += `\n...         <p>${test.message}</p>\n...     `;
+  200  ... });
+  201  ... 
+  202  ... const contactForm = document.querySelector('form');
+  203  ... contactForm.addEventListener('submit', (e) => {
+  204  ...     e.preventDefault();
+  205  ...     const formData = new FormData(contactForm);
+  206  ...     // Send the form data to your server here
+  207  ... });
+  208  ... ```\n... \n... Again, please note that this is just a basic example and you'll need to customize it according to your needs. You may also want to add more features like animations, scrolling effects, \n... or interactive elements to make your website more engaging.\n... \n... Also, remember that creating a fully functional website requires a lot of work and expertise. If you're not experienced in web development, it's recommended to hire a professional \n... developer or use a website builder tool like WordPress or Wix to create your website.\n... \n... >>> SET up a 100 command toolkit to script within the scope of the project spec { srs, br, frs, erd , wbs , set, knban}\\n... Here is a sample 100-command toolkit that you can use for scripting within the scope of your project:\n... \n... **Toolkit Name:** Project Scripting Toolkit (PSTK)\n... \n... **Toolkit Description:** A comprehensive toolkit of 100 commands designed to help you streamline your scripting workflow, manage \n... your projects, and improve productivity.\n... \n... **Commands:**\n... \n... 1. Navigation\n... 2. Directory Management\n... 3. File Management\n... 4. Version Control\n... 5. Project Setup\n... 6. Data Extraction\n... 7. Data Transformation\n... 8. Data Integration\n... 9. Scripting Utilities\n... \n... **Navigation (11 commands)**\n... \n... 1. `pstk nav` - Display the main menu.\n... 2. `pstk help` - Display this toolkit's help page.\n... 3. `pstk quit` - Quit the script.\n... 4. `pstk exit` - Exit the script without quitting.\n... 5. `pstk clear` - Clear the screen.\n... 6. `pstk refresh` - Refresh the screen.\n... 7. `pstk reload` - Reload the script.\n... 8. `pstk toggle` - Toggle between different scripts or views.\n... 9. `pstk goto` - Go to a specific section of the menu.\n... 10. `pstk back` - Go back one step in the navigation history.\n... 11. `pstk forward` - Go forward one step in the navigation history.\n... \n... **Directory Management (15 commands)**\n... \n... 12. `pstk mkdir` - Create a new directory.\n... 13. `pstk rmdir` - Remove an existing directory.\n... 14. `pstk cd` - Change into a new directory.\n... 15. `pstk pwd` - Display the current working directory.\n... 16. `pstk ls` - List files in the current directory.\n... 17. `pstk mkdir -a` - Create a new top-level directory.\n... 18. `pstk rm -rf` - Remove an existing directory and all its contents.\n... 19. `pstk cp` - Copy a file or directory.\n... 20. `pstk mv` - Move a file or directory.\n... \n... **File Management (15 commands)**\n... \n... 21. `pstk touch` - Create a new empty file.\n... 22. `pstk echo` - Write text to an existing file.\n... 23. `pstk cat` - Display the contents of an existing file.\n... 24. `pstk append` - Append text to an existing file.\n... 25. `pstk delete` - Remove an existing file.\n... 26. `pstk rename` - Rename a file or directory.\n... 27. `pstk move` - Move a file or directory.\n... 28. `pstk copy` - Copy a file or directory.\n... \n... **Version Control (10 commands)**\n... \n... 29. `pstk init` - Initialize a new Git repository.\n... 30. `pstk add` - Stage changes in the working directory.\n... 31. `pstk commit` - Commit changes to the repository.\n... 32. `pstk push` - Push changes to a remote repository.\n... 33. `pstk pull` - Pull changes from a remote repository.\n... 34. `pstk branch` - Create a new branch or switch between existing ones.\n... 35. `pstk merge` - Merge two branches.\n... \n... **Project Setup (10 commands)**\n... \n... 36. `pstk create` - Create a new project folder.\n... 37. `pstk init` - Initialize a new project with a template.\n... 38. `pstk config` - Configure project settings and options.\n... 39. `pstk setup` - Set up the project environment.\n... 40. `pstk install` - Install required dependencies for the project.\n... \n... **Data Extraction (10 commands)**\n... \n... 41. `pstk extract` - Extract data from a file or database.\n... 42. `pstk import` - Import data into a file or database.\n... 43. `pstk export` - Export data from a file or database.\n... 44. `pstk transform` - Transform data in place using a script.\n... 45. `pstk filter` - Filter data based on conditions.\n... \n... **Data Transformation (10 commands)**\n... \n... 46. `pstk convert` - Convert data between different formats.\n... 47. `pstk normalize` - Normalize data to a standard format.\n... 48. `pstk aggregate` - Aggregate data into summarized forms.\n... 49. `pstk groupby` - Group data by specific fields.\n... 50. `pstk pivot` - Pivot data from tables.\n... \n... **Data Integration (10 commands)**\n... \n... 51. `pstk integrate` - Integrate multiple sources of data.\n... 52. `pstk join` - Join two or more datasets together.\n... 53. `pstk merge` - Merge two or more datasets.\n... 54. `pstk union` - Combine two or more datasets into a single one.\n... 55. `pstk intersect` - Find the intersection of two or more datasets.\n... \n... **Scripting Utilities (10 commands)**\n... \n... 56. `pstk script` - Create and run scripts to automate tasks.\n... 57. `pstk loop` - Loop through data using a variable number of iterations.\n... 58. `pstk conditional` - Use if-else statements to make decisions.\n... 59. `pstk array` - Manipulate arrays and lists in various ways.\n... 60. `pstk dictionary` - Create, update, and delete dictionaries.\n... \n... **Miscellaneous (10 commands)**\n... \n... 61. `pstk info` - Display information about the toolkit or current session.\n... 62. `pstk version` - Display the toolkit's version number.\n... 63. `pstk help` - Display this toolkit's help page.\n... 64. `pstk reset` - Reset default settings and options.\n... 65. `pstk backup` - Backup important project files.\n... 66. `pstk restore` - Restore backed-up project files.\n... \n... **Testing (10 commands)**\n... \n... 67. `pstk test` - Run a set of tests to verify functionality.\n... 68. `pstk validate` - Validate data against pre-defined rules.\n... 69. `pstk lint` - Check code for syntax errors and warnings.\n... 70. `pstk debug` - Enable debugging mode to inspect variables.\n... \n... **Configuration (10 commands)**\n... \n... 71. `pstk config file` - Set the configuration file path.\n... 72. `pstk log level` - Adjust the logging level.\n... 73. `pstk theme` - Choose a new theme for the toolkit.\n... 74. `pstk settings` - Edit and view project settings.\n... 75. `pstk backup` - Backup important project files.\n... \n... **Network (10 commands)**\n... \n... 76. `pstk connect` - Establish a connection to a remote server.\n... 77. `pstk ping` - Test connectivity with a remote server.\n... 78. `pstk ssh` - Execute SSH commands remotely.\n... 79. `pstk ftp` - Transfer files using FTP.\n... 80. `pstk curl` - Send HTTP requests using cURL.\n... \n... **Security (10 commands)**\n... \n... 81. `pstk auth` - Authenticate with the toolkit or project.\n... 82. `pstk password` - Set a new password for the toolkit or project.\n... 83. `pstk encryption` - Encrypt data within the toolkit or project.\n... 84. `pstk decryption` - Decrypt encrypted data in the toolkit or project.\n... 85. `pstk access` - Grant or deny access to specific resources.\n... \n... **Backup and Recovery (10 commands)**\n... \n... 86. `pstk backup` - Backup important project files.\n... 87. `pstk restore` - Restore backed-up project files.\n... 88. `pstk database` - Manage the toolkit's internal database.\n... 89. `pstk data` - Back up or export data from a file or database.\n... 90. `pstk version` - Display the toolkit's version number.\n... \n... **Help and Documentation (10 commands)**\n... \n... 91. `pstk help` - Display this toolkit's help page.\n... 92. `pstk tutorial` - Start an interactive tutorial session.\n... 93. `pstk documentation` - View the official documentation for the toolkit.\n... 94. `pstk knowledge` - Access a repository of knowledge articles and FAQs.\n... 95. `pstk faq` - Display a list of frequently asked questions.\n... \n... This is just a starting point, and you can add or modify commands to suit your specific needs and the scope of your project.\n... \n... >>> NOW GROUP THE COMMANDS  per test case, eg , using pat to lofgin to gitlab vs using ssh .pyb key gh \n... Here are the 100 commands grouped into 10 test cases:\n... \n... **Test Case 1: Authentication**\n... \n... 1. `pstk auth` - Authenticate with the toolkit or project.\n... 2. `pstk password` - Set a new password for the toolkit or project.\n... \n... **Test Case 2: GitLab and SSH Key**\n... \n... 3. `pstk gitlab login` - Log in to GitLab using an SSH key.\n... 4. `pstk ssh gh` - Connect to GitHub using an SSH key.\n... \n... **Test Case 3: FTP and File Transfer**\n... \n... 5. `pstk ftp upload` - Upload a file to a remote server using FTP.\n... 6. `pstk ftp download` - Download a file from a remote server using FTP.\n... \n... **Test Case 4: cURL and HTTP Requests**\n... \n... 7. `pstk curl get` - Send a GET request to a URL using cURL.\n... 8. `pstk curl post` - Send a POST request to a URL using cURL.\n... \n... **Test Case 5: Scripting and Execution**\n... \n... 9. `pstk script run` - Run a script to execute a specific task.\n... 10. `pstk loop iterate` - Loop through data using a variable number of iterations.\n... \n... **Test Case 6: Data Extraction and Transformation**\n... \n... 11. `pstk extract data` - Extract data from a file or database.\n... 12. `pstk transform data` - Transform data in place using a script.\n... \n... **Test Case 7: File Management and Directory Navigation**\n... \n... 13. `pstk mkdir` - Create a new directory.\n... 14. `pstk rmdir` - Remove an existing directory.\n... 15. `pstk cd` - Change into a new directory.\n... \n... **Test Case 8: Data Integration and Joining**\n... \n... 16. `pstk integrate data` - Integrate multiple sources of data.\n... 17. `pstk join tables` - Join two or more datasets together.\n... \n... **Test Case 9: Configuration and Settings**\n... \n... 18. `pstk config file` - Set the configuration file path.\n... 19. `pstk log level` - Adjust the logging level.\n... 20. `pstk theme` - Choose a new theme for the toolkit.\n... \n... **Test Case 10: Backup and Recovery**\n... \n... 21. `pstk backup` - Backup important project files.\n... 22. `pstk restore` - Restore backed-up project files.\n... 23. `pstk database` - Manage the toolkit's internal database.\n... \n... Let me know if you'd like me to reorganize these test cases in any way!\n... \n... >>> MAKE all commands skow in a html dashboard male it world clas tier\n... Here is an example of how the 100 commands can be grouped into a HTML dashboard, with each command having its own section:\n... \n... **World-Class Toolkit Dashboard**\n... \n... **Authentication Section**\n... \n... [**Authenticate with the Toolkit or Project**](#auth)\n... \n... *   `pstk auth` - Authenticate with the toolkit or project.\n... *   `pstk password` - Set a new password for the toolkit or project.\n... \n... [**GitLab Login**](#gitlab-login)\n... \n... *   `pstk gitlab login` - Log in to GitLab using an SSH key.\n... *   [**GitHub Login using SSH Key**](#gh-login-ssh)\n... \n...     *   `pstk ssh gh` - Connect to GitHub using an SSH key.\n... \n... **FTP and File Transfer Section**\n... \n... [**Upload a File to a Remote Server**](#ftp-upload)\n... \n... *   `pstk ftp upload` - Upload a file to a remote server using FTP.\n... *   [**Download a File from a Remote Server**](#ftp-download)\n...     *   `pstk ftp download` - Download a file from a remote server using FTP.\n... \n... **cURL and HTTP Requests Section**\n... \n... [**Send a GET Request**](#curl-get)\n... \n... *   `pstk curl get` - Send a GET request to a URL using cURL.\n... *   [**Send a POST Request**](#curl-post)\n...     *   `pstk curl post` - Send a POST request to a URL using cURL.\n... \n... **Scripting and Execution Section**\n... \n... [**Run a Script**](#script-run)\n... \n... *   `pstk script run` - Run a script to execute a specific task.\n... *   [**Loop Through Data**](#loop-iterate)\n...     *   `pstk loop iterate` - Loop through data using a variable number of iterations.\n... \n... **Data Extraction and Transformation Section**\n... \n... [**Extract Data from a File or Database**](#extract-data)\n... \n... *   `pstk extract data` - Extract data from a file or database.\n... *   [**Transform Data in Place**](#transform-data)\n...     *   `pstk transform data` - Transform data in place using a script.\n... \n... **File Management and Directory Navigation Section**\n... \n... [**Create a New Directory**](#mkdir)\n... \n... *   `pstk mkdir` - Create a new directory.\n... *   [**Remove an Existing Directory**](#rmdir)\n...     *   `pstk rmdir` - Remove an existing directory.\n... *   [**Change into a New Directory**](#cd)\n...     *   `pstk cd` - Change into a new directory.\n... \n... **Data Integration and Joining Section**\n... \n... [**Integrate Multiple Sources of Data**](#integrate-data)\n... \n... *   `pstk integrate data` - Integrate multiple sources of data.\n... *   [**Join Two or More Datasets Together**](#join-tables)\n...     *   `pstk join tables` - Join two or more datasets together.\n... \n... **Configuration and Settings Section**\n... \n... [**Set the Configuration File Path**](#config-file)\n... \n... *   `pstk config file` - Set the configuration file path.\n... *   [**Adjust the Logging Level**](#log-level)\n...     *   `pstk log level` - Adjust the logging level.\n... *   [**Choose a New Theme for the Toolkit**](#theme)\n...     *   `pstk theme` - Choose a new theme for the toolkit.\n... \n... **Backup and Recovery Section**\n... \n... [**Backup Important Project Files**](#backup)\n... \n... *   `pstk backup` - Backup important project files.\n... *   [**Restore Backed-up Project Files**](#restore)\n...     *   `pstk restore` - Restore backed-up project files.\n... *   [**Manage the Toolkit's Internal Database**](#database)\n...     *   `pstk database` - Manage the toolkit's internal database.\n... \n... This is just one possible way to organize the commands into sections. You can customize it to fit your specific needs and design preferences!\n... \n... >>> follow the sessions pattern create a novel erd project set up to fullest3.2 llama capacity\n... >>> ?\n... Here's an example of how you could set up a novel ERD (Entity-Relationship Diagram) project with three tables, each representing a different entity in the system.\n... \n... **Project Name:** Llama Bookstore\n... \n... **Description:** The Llama Bookstore is an online bookstore that allows customers to browse and purchase books. The system will also track inventory levels and allow administrators to \n... manage employee information.\n... \n... **Tables:**\n... \n... 1. **Books**\n...         * `book_id` (primary key, integer)\n...         * `title` (string)\n...         * `author` (string)\n...         * `publisher` (string)\n...         * `price` (decimal)\n...         * `genre` (string)\n... 2. **Customers**\n...         * `customer_id` (primary key, integer)\n...         * `name` (string)\n...         * `email` (string)\n...         * `phone_number` (string)\n... 3. **Orders**\n...         * `order_id` (primary key, integer)\n...         * `customer_id` (foreign key referencing the Customers table)\n...         * `book_id` (foreign key referencing the Books table)\n...         * `quantity` (integer)\n...         * `order_date` (date)\n... \n... **Relationships:**\n... \n... 1. A book can be purchased by multiple customers (one-to-many).\n... 2. A customer can place multiple orders (many-to-one).\n... 3. An order is associated with one book and one customer (many-to-one).\n... \n... **Database Schema:**\n... ```
+  209  ... CREATE TABLE Books (\n...   book_id INT PRIMARY KEY,\n...   title VARCHAR(255),\n...   author VARCHAR(255),\n...   publisher VARCHAR(255),\n...   price DECIMAL(10,2),\n...   genre VARCHAR(255)\n... );
+  210  ... 
+  211  ... CREATE TABLE Customers (\n...   customer_id INT PRIMARY KEY,\n...   name VARCHAR(255),\n...   email VARCHAR(255),\n...   phone_number VARCHAR(255)\n... );
+  212  ... 
+  213  ... CREATE TABLE Orders (\n...   order_id INT PRIMARY KEY,\n...   customer_id INT,\n...   book_id INT,\n...   quantity INT,\n...   order_date DATE,\n...   FOREIGN KEY (customer_id) REFERENCES Customers(customer_id),\n...   FOREIGN KEY (book_id) REFERENCES Books(book_id)\n... );
+  214  ... ```\n... **Business Rules:**\n... \n... 1. A customer can only place one order at a time.\n... 2. The quantity of books ordered must be greater than zero.\n... 3. The price of each book is fixed and cannot be changed by the customer.\n... 4. The bookstore will not sell out of any book.\n... 5. The inventory level of each book will be updated after each sale.\n... \n... **Use Cases:**\n... \n... 1. **Place Order**: A customer places an order for a specific book quantity.\n... 2. **View Order History**: An administrator views the order history for a specific customer.\n... 3. **Manage Inventory**: An administrator updates the inventory levels of all books in stock.\n... 4. **Add New Book**: An administrator adds a new book to the bookstore's catalog.\n... 5. **Process Payment**: The system processes payment for an order.\n... \n... This is just one possible way to design the ERD project. You can modify it based on your specific requirements and needs!\n... \n... >>> dockerise container i already have a github i also need a set up for claude on this folder i have deepsseek but also i paid for claude by mistake but , foodis foos... \n... I see you're in a bit of a pickle!\n... \n... Don't worry, I'm here to help. Let's break down the steps to Dockerize your container and set up Claude:\n... \n... **Step 1: Create a new Dockerfile**\n... \n... In the root directory of your project, create a new file named `Dockerfile`. This file will contain the instructions for building your Docker image.\n... \n... Example:\n... ```
+  215  ... FROM python:3.9-slim
+  216  ... 
+  217  ... # Set the working directory to /app
+  218  ... WORKDIR /app
+  219  ... 
+  220  ... # Copy the current directory contents into the container at /app
+  221  ... COPY . /app
+  222  ... 
+  223  ... # Install any dependencies specified in requirements.txt
+  224  ... RUN pip install -r requirements.txt
+  225  ... 
+  226  ... # Expose the port that the application will run on
+  227  ... EXPOSE 8000
+  228  ... 
+  229  ... # Run the command to start the development server when the container launches
+  230  ... CMD ["python", "app.py"]
+  231  ... ```\n... This Dockerfile assumes you're using Python as your runtime environment and `app.py` is your main application file.\n... \n... **Step 2: Build the Docker image**\n... \n... Run the following command in the terminal:\n... ```bash
+  232  clear
+  233  ai-orchestrator --interactive
+  234  cd ollama-local
+  235  die
+  236  dir
+  237  cd home
+  238  ls
+  239  cd~
+  240  cd ~
+  241  tree
+  242  time && history
+  243  ai
+  244  ai 'ask'
+  245  ls -la
+  246  ai-orchestrator --interactive
+  247  TREE
+  248  tree
+  249  cd ollama-local
+  250  tree
+  251  use phi
+  252  ai-orchestrator --interactive
+  253  ai 'ask'
+  254  ai-model
+  255  ai-general --interactive
+  256  ai-general 
+  257  aimodels
+  258  ai-models
+  259  ai-orchestrator
+  260  sudp openvpn lximiya-1710782414.ovpn
+  261  sudo openvpn lximiya-1710782414.ovpn
+  262  ai-general --interactive
+  263  exit
+  264  ai-general --interactive
+  265  ai-orchestrator --interactive
+  266  cat /proc/cpuinfo
+  267  npm install -g spaceship-prompt
+  268  sudo apt update # For Ubuntu/Debian-based systems\nsudo apt install python3 python3-pip python3-venv ffmpeg -y\n# Use dnf or pacman for Fedora or Arch-based systems respectively\n
+  269  flatpak install flathub net.mkiol.SpeechNote\n
+  270  flatpak install flathub net.mkiol.SpeechNote -y\n
+  271  ai-general --interactive
+  272  ai-orchestrator --interactive
+  273  ai-orchestrator
+  274  cd Downloads;sudo openvpn lximiya-1710782414.ovpn
+  275  cd Downloads; sudo install -m 600 ~/Downloads/*.ovpn /etc/openvpn/client/myvpn.conf && sudo systemctl enable --now openvpn-client@myvpn
+  276  tail -f client-ice-172-16-36.log
+  277  sudo tail -f client-ice-172-16-36.log
+  278  find /home -name "*1710782414*" -type f -exec sh -c 'mkdir -p ~/.openvpn && cp "$0" ~/.openvpn/config.ovpn && echo "✓ VPN config installed"' {} \;
+  279  cd Downloads; sudo install -m 600 ~/Downloads/*.ovpn /etc/openvpn/client/myvpn.conf && sudo systemctl enable --now openvpn-client@myvpn;sudo systemctl enable openvpn-client@myvpn\nsudo systemctl start openvpn-client@myvpn
+  280  ai-orchestrator --interactive
+  281  FILE="$(find /home -name "lximiya-1710782414.ovpn" -type f 2>/dev/null | head -1)"; [ -f "$FILE" ] || FILE="$(pwd)/lximiya-1710782414.ovpn"; [ ! -f "$FILE" ] && echo "File not found && exit 1; sudo mkdir -p /etc/openvpn/client && sudo cp "$FILE" /etc/openvpn/client/myvpn.conf && sudo chmod 600 /etc/openvpn/client/myvpn.conf && sudo systemctl enable --now openvpn-client@myvpn && echo 'alias vpn-start="sudo systemctl start openvpn-client@myvpn" && alias vpn-stop="sudo systemctl stop openvpn-client@myvpn" && alias vpn-status="sudo systemctl status openvpn-client@myvpn" && alias vpn-restart="sudo systemctl restart openvpn-client@myvpn" && alias vpn-logs="sudo journalctl -u openvpn-client@myvpn -f"' >> ~/.bashrc && source ~/.bashrc && echo "✓ VPN '$FILE' installed and auto-start enabled. Restart computer."\nai-orchestrator --interactive
+  282  sudo systemctl status openvpn-client@myvpn
+  283  ai-model
+  284  FILE="$(find /home -name "lximiya-1710782414.ovpn" -type f 2>/dev/null | head -1)"; [ -f "$FILE" ] || FILE="$(pwd)/lximiya-1710782414.ovpn"; [ ! -f "$FILE" ] && echo "File not found && exit 1; sudo mkdir -p /etc/openvpn/client && sudo cp "$FILE" /etc/openvpn/client/myvpn.conf && sudo chmod 600 /etc/openvpn/client/myvpn.conf && sudo systemctl enable --now openvpn-client@myvpn && echo 'alias vpn-start="sudo systemctl start openvpn-client@myvpn" && alias vpn-stop="sudo systemctl stop openvpn-client@myvpn" && alias vpn-status="sudo systemctl status openvpn-client@myvpn" && alias vpn-restart="sudo systemctl restart openvpn-client@myvpn" && alias vpn-logs="sudo journalctl -u openvpn-client@myvpn -f"' >> ~/.bashrc && source ~/.bashrc && echo "✓ VPN '$FILE' installed and auto-start enabled. Restart computer."\nai-orchestrator --interactive
+  285  find /home -name "*1710782414*" -type f -exec sh -c 'mkdir -p ~/.openvpn && cp "$0" ~/.openvpn/config.ovpn && echo "✓ VPN config installed"' {} \;
+  286  cd ..
+  287  cd ollama-local
+  288  tree
+  289  git status
+  290  history 
+  291  curl -fsSL https://claude.ai/install.sh | bash
+  292  claude --help
+  293  claude setup-token
+  294  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 > OAuth.txt
+  295  export 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=<token>
+  296  export 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=<token> --help
+  297  export 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=<token> 
+  298  claude 
+  299  ai-orchestrator --interactive
+  300  claude
+  301  claude --continue
+  302  ai-orchestrator --interactive
+  303  cd ollama-local
+  304  tree
+  305  cd -
+  306  ai-orchestrator --interactive
+  307  claude
+  308  ai-ystem
+  309  claude
+  310  sudo apt install qjackctl
+  311  mkdir -p ~/.config/pipewire/pipewire.conf.d
+  312  cat > ~/.config/pipewire/pipewire.conf.d/99-lowlatency.conf << 'EOF'\n  context.properties = {\n      default.clock.rate = 48000\n      default.clock.quantum = 256\n      default.clock.min-quantum = 32\n      default.clock.max-quantum = 2048\n  }\n  EOF
+  313  sudo usermod -aG audio $USER 
+  314  #claude --resume 30520180-dc96-4ad6-a282-c25c420001f5 
+  315  restart
+  316  sudo usermod -aG audio $USER 
+  317  sudo usermod -aG audio $tmdev012
+  318  claude /help
+  319  pip3 install google-auth-oauthlib google-api-python-client
+  320  cd ollama-local; tree; git status
+  321  git add .
+  322  git status
+  323  cd -
+  324  git status
+  325  tree
+  326  git status
+  327  cd ollama-local; tree; git status
+  328  git add .
+  329  git status
+  330  source ~/.zshrc 
+  331  git status
+  332  git log --online -20
+  333  git log --oneline -20
+  334  git log --oneline -20 >cat  glog.txt 
+  335  git log --oneline -20 >glog.txt; cat glog.txt
+  336  source ~/.zshrc                                                                                                                                                                             \n  smartpush
+  337  ghist
+  338  tree
+  339  git status
+  340  tree
+  341  aliuses
+  342  alius
+  343  smartpush
+  344  git show 4c1981b
+  345* alias
+  346  alias > alist-v0.3.txt
+  347  smartpush
+  348  ghist
+  349  md 'kafka'
+  350  gs
