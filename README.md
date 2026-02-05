@@ -20,6 +20,8 @@
 - [Aliases Reference](#aliases-reference)
 - [Tech Stack](#tech-stack)
 - [Termux Sync](#termux-sync)
+- [Smart Push](#smart-push)
+- [Session Timeline](#session-timeline)
 
 ---
 
@@ -65,7 +67,10 @@ ollama-local/
 ├── docker-compose.yml       # Container orchestration
 │
 ├── db/
-│   └── history.db           # SQLite (3 tables, 9 indexes)
+│   └── history.db           # SQLite (4 tables, 11 indexes)
+│
+├── backups/
+│   └── tree_*.txt           # File tree snapshots (auto-rotated)
 │
 ├── mcp/                     # Model Context Protocol
 │   ├── claude/              # Claude Opus 4.5
@@ -93,6 +98,7 @@ ollama-local/
 ├── scripts/
 │   ├── git-setup.sh         # SSH/GitHub setup
 │   ├── git-aliases.sh       # Git alias installer
+│   ├── smart-push.sh        # Intelligent git commit (v2.0)
 │   └── termux-sync.sh       # Cross-device sync
 │
 ├── archive/                 # Previous versions
@@ -293,6 +299,24 @@ Shell Load:          ~2s   →  ~0.5s  (4x faster)
 │    created_at      DATETIME         │
 │    updated_at      DATETIME         │
 └─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│            commits                  │
+├─────────────────────────────────────┤
+│ PK id              INTEGER          │
+│    hash            TEXT        ◄────┼─── idx_commits_hash
+│    message         TEXT             │
+│    auto_description TEXT            │
+│    issue_number    TEXT        ◄────┼─── idx_commits_issue
+│    version_tag     TEXT        ◄────┼─── idx_commits_version
+│    branch          TEXT             │
+│    files_changed   INTEGER          │
+│    lines_added     INTEGER          │
+│    lines_deleted   INTEGER          │
+│    categories      TEXT             │
+│    timestamp       DATETIME         │
+│    tree_backup     TEXT             │
+└─────────────────────────────────────┘
 ```
 
 ### Tables
@@ -302,8 +326,9 @@ Shell Load:          ~2s   →  ~0.5s  (4x faster)
 | queries | N | 3 | AI query history |
 | favorites | N | 1 | Starred queries |
 | mcp_groups | 6 | 2 | MCP provider registry |
+| commits | N | 5 | Smart push commit tracking |
 
-### Indexes (9 total)
+### Indexes (11 total)
 
 ```sql
 -- queries
@@ -317,6 +342,13 @@ CREATE INDEX idx_favorites_query ON favorites(query_id);
 -- mcp_groups
 CREATE INDEX idx_mcp_groups_category ON mcp_groups(category);
 CREATE INDEX idx_mcp_groups_enabled ON mcp_groups(enabled);
+
+-- commits
+CREATE INDEX idx_commits_hash ON commits(hash);
+CREATE INDEX idx_commits_version ON commits(version_tag);
+CREATE INDEX idx_commits_issue ON commits(issue_number);
+CREATE INDEX idx_commits_branch ON commits(branch);
+CREATE INDEX idx_commits_timestamp ON commits(timestamp);
 ```
 
 ---
@@ -360,6 +392,17 @@ CREATE INDEX idx_mcp_groups_enabled ON mcp_groups(enabled);
 | `gpp "msg"` | Short for gitpush |
 | `ship "msg"` | Another alias |
 | `gship` | Interactive (prompts for message) |
+
+### Smart Push (v2.0)
+
+| Alias | Description |
+|-------|-------------|
+| `smartpush` | Full interactive smart commit |
+| `sp` | Short alias for smartpush |
+| `gpush` | Another alias |
+| `ghist` | View commit history from SQLite |
+| `gver` | List all version tags |
+| `gissue "N"` | Find commits by issue number |
 
 ### Ollama
 
@@ -464,6 +507,112 @@ GIT_REPO=ollama-local
 # MCP Groups
 MCP_GROUPS=core,claude,deepseek,llama,voice,gmail
 ```
+
+---
+
+## Smart Push
+
+Intelligent git commit system with auto-categorization, version tagging, and issue linking.
+
+### Features
+
+- **Auto-categorization**: Files categorized by extension
+- **Branch comparison**: Shows ahead/behind vs main
+- **Version tagging**: Semantic versioning with auto-increment
+- **Issue linking**: Links commits to GitHub issues
+- **File tree backup**: Snapshots before each commit
+- **SQLite tracking**: All commits stored with metadata
+
+### File Categories
+
+| Category | Extensions |
+|----------|------------|
+| `frontend:styles` | html, css, scss, sass, less |
+| `frontend:script` | js, jsx, ts, tsx, vue, svelte |
+| `backend:python` | py, pyw |
+| `scripts:shell` | sh, bash, zsh, fish |
+| `config` | json, yaml, yml, toml, ini, conf, env |
+| `database` | sql, db, sqlite |
+| `docs` | md, txt, rst, doc |
+| `devops:docker` | Dockerfile, docker-compose* |
+| `testing` | test*, *_test.*, *spec.* |
+| `mcp:module` | mcp/* directory |
+
+### Usage
+
+```bash
+# Interactive mode
+smartpush
+
+# Output includes:
+# [1/8] Branch comparison (feature vs main)
+# [2/8] File tree backup
+# [3/8] File changes by category
+# [4/8] Diff summary (+lines/-lines)
+# [5/8] Auto-generated description
+# [6/8] Commit details (version tag, issue #)
+# [7/8] Commit
+# [8/8] Push
+```
+
+### Query History
+
+```bash
+# View commit history
+ghist
+
+# List version tags
+gver
+
+# Find commits by issue
+gissue 42
+```
+
+---
+
+## Session Timeline
+
+### Git Commit History (10-hour session)
+
+| Commit | Tag | Description | Files |
+|--------|-----|-------------|-------|
+| `faaef58` | - | Clean: MCP structure with sashi CLI | 16 |
+| `b57005f` | - | Add Gmail module for email context | 4 |
+| `b619c56` | - | v2.0.0: SASHI optimization, voice, Git/SSH | 17 |
+| `373647c` | - | Add termux-sync for cross-device backup | 2 |
+| `d0445aa` | - | Add comprehensive README | 1 |
+| `1ff6995` | - | Add smart-push v2.0 | 1 |
+| `1904374` | v0.0.1 | Smart alias for YAML webhooks | 1 |
+| `4c1981b` | v0.0.2 | Filetree update - structure changes | 1 |
+| `bcef945` | - | Timestamped filetree monitoring | 1 |
+| `0ef3279` | - | MCP module directories consistency | 3 |
+
+### Session Stats
+
+```
+Total commits:     10
+Files created:     30+
+Files modified:    12
+Lines added:       4,500+
+Lines deleted:     400+
+Tables created:    4
+Indexes created:   11
+Aliases added:     25+
+Duration:          ~10 hours
+```
+
+### Key Accomplishments
+
+1. **MCP Architecture** - 6 modules (claude, deepseek, llama, voice, gmail, core)
+2. **SASHI v2.0** - HTTP API optimization (5-8s → 2.2s)
+3. **Voice Input** - CLI + GUI with Google Speech-to-Text
+4. **Smart Push** - Auto-categorization, versioning, SQLite tracking
+5. **Alias Cleanup** - 43 broken → 22 clean MCP-aligned
+6. **SQLite Schema** - 4 tables, 11 indexes
+7. **Git/SSH Setup** - ED25519 keys, GitHub auth
+8. **Docker Support** - Full containerization
+9. **Termux Sync** - Cross-device config backup
+10. **Documentation** - README, CHANGELOG, schema docs
 
 ---
 
