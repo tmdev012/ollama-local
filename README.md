@@ -54,15 +54,15 @@ SASHI routes your queries to the best AI backend:
 
 ### Process Map
 
-![Process Map](docs/diagrams/process-map.svg)
+![Process Map](docs/diagrams/process-map-animated.svg)
 
 ### Data Flow
 
-![Data Flow](docs/diagrams/data-flow.svg)
+![Data Flow](docs/diagrams/data-flow-animated.svg)
 
 ### Smart Push Flow
 
-![Smart Push Flow](docs/diagrams/smart-push.svg)
+![Smart Push Flow](docs/diagrams/smart-push-animated.svg)
 
 ---
 
