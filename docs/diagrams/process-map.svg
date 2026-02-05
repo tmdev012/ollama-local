@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650">
+  <defs>
+    <linearGradient id="inputGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e3f2fd"/>
+      <stop offset="100%" style="stop-color:#bbdefb"/>
+    </linearGradient>
+    <linearGradient id="routerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fff3e0"/>
+      <stop offset="100%" style="stop-color:#ffe0b2"/>
+    </linearGradient>
+    <linearGradient id="mcpGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f3e5f5"/>
+      <stop offset="100%" style="stop-color:#e1bee7"/>
+    </linearGradient>
+    <linearGradient id="storageGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e8f5e9"/>
+      <stop offset="100%" style="stop-color:#c8e6c9"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#333">SASHI Process Map</text>
+
+  <!-- Input Layer -->
+  <rect x="50" y="50" width="800" height="80" rx="10" fill="url(#inputGrad)" stroke="#1976d2" stroke-width="2" filter="url(#shadow)"/>
+  <text x="70" y="75" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1565c0">📥 Input Layer</text>
+
+  <rect x="80" y="90" width="120" height="30" rx="5" fill="#fff" stroke="#1976d2"/>
+  <text x="140" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#333">CLI (sashi)</text>
+
+  <rect x="220" y="90" width="120" height="30" rx="5" fill="#fff" stroke="#1976d2"/>
+  <text x="280" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#333">🎤 Voice</text>
+
+  <rect x="360" y="90" width="120" height="30" rx="5" fill="#fff" stroke="#1976d2"/>
+  <text x="420" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#333">📄 Pipe/Stdin</text>
+
+  <!-- Arrow down -->
+  <path d="M 450 130 L 450 160" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#666"/></marker></defs>
+
+  <!-- Router Layer -->
+  <rect x="200" y="170" width="500" height="80" rx="10" fill="url(#routerGrad)" stroke="#f57c00" stroke-width="2" filter="url(#shadow)"/>
+  <text x="220" y="195" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#e65100">🔀 SASHI Router v2.0</text>
+
+  <rect x="230" y="210" width="100" height="30" rx="5" fill="#fff" stroke="#f57c00"/>
+  <text x="280" y="230" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#333">Parse</text>
+
+  <rect x="350" y="210" width="100" height="30" rx="5" fill="#fff" stroke="#f57c00"/>
+  <text x="400" y="230" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#333">Route</text>
+
+  <rect x="470" y="210" width="100" height="30" rx="5" fill="#fff" stroke="#f57c00"/>
+  <text x="520" y="230" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#333">Async Log</text>
+
+  <!-- Arrows between router boxes -->
+  <path d="M 330 225 L 350 225" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+  <path d="M 450 225 L 470 225" stroke="#666" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+
+  <!-- Arrow down -->
+  <path d="M 450 250 L 450 290" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- MCP Layer -->
+  <rect x="50" y="300" width="800" height="100" rx="10" fill="url(#mcpGrad)" stroke="#7b1fa2" stroke-width="2" filter="url(#shadow)"/>
+  <text x="70" y="325" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#6a1b9a">📦 MCP Modules</text>
+
+  <rect x="80" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
+  <text x="145" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">☁️ DeepSeek</text>
+  <text x="145" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Cloud API</text>
+
+  <rect x="230" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
+  <text x="295" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">🦙 Llama 3.2</text>
+  <text x="295" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Ollama Local</text>
+
+  <rect x="380" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
+  <text x="445" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">🧠 Claude</text>
+  <text x="445" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Opus 4.5</text>
+
+  <rect x="530" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
+  <text x="595" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">📧 Gmail</text>
+  <text x="595" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Context API</text>
+
+  <rect x="680" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
+  <text x="745" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">🗣️ Voice</text>
+  <text x="745" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Google STT</text>
+
+  <!-- Arrow down -->
+  <path d="M 450 400 L 450 440" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Storage Layer -->
+  <rect x="200" y="450" width="500" height="80" rx="10" fill="url(#storageGrad)" stroke="#388e3c" stroke-width="2" filter="url(#shadow)"/>
+  <text x="220" y="475" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#2e7d32">💾 Storage Layer</text>
+
+  <ellipse cx="320" cy="505" rx="70" ry="25" fill="#fff" stroke="#388e3c" stroke-width="2"/>
+  <text x="320" y="502" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">SQLite</text>
+  <text x="320" y="516" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">4 tables, 11 idx</text>
+
+  <rect x="450" y="485" width="120" height="40" rx="5" fill="#fff" stroke="#388e3c"/>
+  <text x="510" y="505" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">📁 Backups</text>
+  <text x="510" y="518" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">tree_*.txt</text>
+
+  <!-- Output -->
+  <rect x="350" y="560" width="200" height="50" rx="10" fill="#fce4ec" stroke="#c2185b" stroke-width="2" filter="url(#shadow)"/>
+  <text x="450" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#880e4f">📤 Terminal Output</text>
+
+  <path d="M 450 530 L 450 560" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+  <!-- Labels -->
+  <text x="145" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Fast</text>
+  <text x="295" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Offline</text>
+  <text x="445" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Complex</text>
+  <text x="595" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Context</text>
+  <text x="745" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Input</text>
+</svg>

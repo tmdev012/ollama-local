@@ -54,123 +54,15 @@ SASHI routes your queries to the best AI backend:
 
 ### Process Map
 
-```mermaid
-flowchart TB
-    subgraph Input["📥 Input Layer"]
-        CLI[/"sashi CLI"/]
-        Voice["🎤 Voice Input"]
-        Pipe["📄 Pipe/Stdin"]
-    end
-
-    subgraph Router["🔀 SASHI Router v2.0"]
-        Parse["Parse Command"]
-        Route["Route to MCP"]
-        Logger["Async Logger"]
-    end
-
-    subgraph MCP["📦 MCP Modules"]
-        direction LR
-        DeepSeek["☁️ DeepSeek<br/>Cloud API"]
-        Llama["🦙 Llama 3.2<br/>Ollama Local"]
-        Claude["🧠 Claude<br/>Opus 4.5"]
-        Gmail["📧 Gmail<br/>Context API"]
-        VoiceMod["🗣️ Voice<br/>Google STT"]
-    end
-
-    subgraph Storage["💾 Storage Layer"]
-        SQLite[("SQLite DB<br/>4 tables<br/>11 indexes")]
-        Backup["📁 Backups<br/>tree_*.txt"]
-    end
-
-    subgraph Output["📤 Output"]
-        Terminal["Terminal"]
-        GUI["Voice GUI"]
-    end
-
-    CLI --> Parse
-    Voice --> VoiceMod
-    Pipe --> Parse
-    VoiceMod --> Parse
-
-    Parse --> Route
-    Route --> Logger
-
-    Route -->|"ask, code"| DeepSeek
-    Route -->|"local, stream"| Llama
-    Route -->|"complex"| Claude
-    Route -->|"gmail"| Gmail
-
-    DeepSeek --> Terminal
-    Llama --> Terminal
-    Claude --> Terminal
-    Gmail --> Terminal
-
-    Logger --> SQLite
-
-    subgraph SmartPush["🚀 Smart Push"]
-        Categorize["Auto-categorize"]
-        Version["Version Tag"]
-        Commit["Git Commit"]
-    end
-
-    Commit --> SQLite
-    Commit --> Backup
-
-    style Input fill:#e1f5fe
-    style Router fill:#fff3e0
-    style MCP fill:#f3e5f5
-    style Storage fill:#e8f5e9
-    style Output fill:#fce4ec
-    style SmartPush fill:#fff8e1
-```
+![Process Map](docs/diagrams/process-map.svg)
 
 ### Data Flow
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant S as SASHI
-    participant R as Router
-    participant M as MCP Module
-    participant D as SQLite
-
-    U->>S: sask "question"
-    S->>R: Parse command
-    R->>R: Select backend (DeepSeek)
-    R->>M: Forward prompt
-    M->>M: API call
-    M-->>R: Response
-    R->>D: Log async (queries table)
-    R-->>S: Format output
-    S-->>U: Display response
-```
+![Data Flow](docs/diagrams/data-flow.svg)
 
 ### Smart Push Flow
 
-```mermaid
-flowchart LR
-    A[git add -A] --> B{Categorize Files}
-    B --> C[frontend]
-    B --> D[backend]
-    B --> E[config]
-    B --> F[docs]
-
-    C & D & E & F --> G[Generate Description]
-    G --> H[Version Tag?]
-    H -->|yes| I[v0.0.X]
-    H -->|no| J[skip]
-    I & J --> K[Issue Link?]
-    K --> L[git commit]
-    L --> M[git push]
-    M --> N[(SQLite commits)]
-    M --> O[📁 tree backup]
-
-    style A fill:#bbdefb
-    style L fill:#c8e6c9
-    style M fill:#c8e6c9
-    style N fill:#e8f5e9
-    style O fill:#fff3e0
-```
+![Smart Push Flow](docs/diagrams/smart-push.svg)
 
 ---
 
