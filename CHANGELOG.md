@@ -159,6 +159,101 @@ mcp/voice/
 13. Created voice input module (CLI + GUI)
 14. Generated full changelog and Docker export
 
-**Total tool calls:** ~45
-**Files modified:** 6
-**Files created:** 5
+**Total tool calls:** ~60
+**Files modified:** 8
+**Files created:** 10
+
+---
+
+## Git/SSH/GitHub Setup
+
+### Git Configuration
+```bash
+user.name=tmdev012
+user.email=tmdev012@users.noreply.github.com
+init.defaultBranch=main
+push.default=current
+```
+
+### SSH Key
+- Type: ED25519
+- Path: `~/.ssh/id_ed25519`
+- Setup script: `scripts/git-setup.sh`
+
+### Git Aliases Added
+
+| Alias | Command | Description |
+|-------|---------|-------------|
+| `gs` | `git status -sb` | Short status |
+| `gd` | `git diff` | Show diff |
+| `gl` | `git log --oneline -20` | Short log |
+| `ga` | `git add` | Stage files |
+| `gaa` | `git add -A` | Stage all |
+| `gc` | `git commit -m` | Commit |
+| `gp` | `git push` | Push |
+| `gpl` | `git pull` | Pull |
+| `gb` | `git branch` | List branches |
+| `gco` | `git checkout` | Checkout |
+
+### Pipeline Aliases (NEW)
+
+| Alias | Description |
+|-------|-------------|
+| `gitpush "msg"` | Add + Commit + Push in one command |
+| `gpp "msg"` | Short alias for gitpush |
+| `ship "msg"` | Another alias for gitpush |
+| `gship` | Interactive mode (prompts for message) |
+
+---
+
+## MCP Groups (6 Sets)
+
+Stored in SQLite `mcp_groups` table:
+
+| ID | Name | Category | Description |
+|----|------|----------|-------------|
+| 6 | core | core | SASHI CLI and routing logic |
+| 1 | claude | model | Claude Opus 4.5 - Complex reasoning |
+| 2 | deepseek | model | DeepSeek API - Fast cloud inference |
+| 3 | llama | model | Llama 3.2 - Local offline |
+| 4 | voice | protocol | Google Speech-to-Text input |
+| 5 | gmail | protocol | Gmail API for email context |
+
+---
+
+## SQLite Schema (Final)
+
+### Tables
+1. **queries** - AI query history (6 indexes)
+2. **favorites** - Starred queries (1 index)
+3. **mcp_groups** - MCP provider registry (2 indexes)
+
+### Indexes (9 total)
+```sql
+idx_queries_model, idx_queries_timestamp, idx_queries_duration
+idx_favorites_query
+idx_mcp_groups_category, idx_mcp_groups_enabled
+```
+
+---
+
+## Files in This Session
+
+### Created
+- `scripts/git-setup.sh` - Interactive SSH/GitHub setup
+- `scripts/git-aliases.sh` - Git alias installer
+- `mcp/voice/tools/voice-input` - CLI voice-to-text
+- `mcp/voice/tools/voice-gui` - Desktop GUI
+- `mcp/voice/tools/install-voice` - Dependency installer
+- `mcp/voice/config/model.json` - Voice module config
+- `Dockerfile` - Container build
+- `docker-compose.yml` - Container orchestration
+- `install.sh` - One-command installer
+- `CHANGELOG.md` - This file
+
+### Modified
+- `sashi` - v1.0 → v2.0 (optimized + voice)
+- `.env` - Added git config, MCP groups
+- `~/.bashrc` - MCP aliases + git aliases
+- `~/.zshrc` - MCP aliases + git aliases
+- `db/history.db` - Added mcp_groups table + indexes
