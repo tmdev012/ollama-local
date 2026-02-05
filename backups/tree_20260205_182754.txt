@@ -1,0 +1,125 @@
+.
+├── archive
+│   ├── ai-health-check.sh
+│   ├── ai-menu-safe.sh
+│   ├── ai-now.sh
+│   ├── ai-orchestrator-complete-backup-20260130_071027
+│   │   ├── ai-code
+│   │   ├── ai-fast
+│   │   ├── ai-general
+│   │   ├── ai-now.sh
+│   │   ├── ai-orchestrator
+│   │   ├── ai-orchestrator.tar.gz
+│   │   ├── build-docker.sh
+│   │   ├── check-progress.sh
+│   │   ├── compare-models.sh
+│   │   ├── debug.sh
+│   │   ├── deepseek-check.sh
+│   │   ├── deepseek.sh
+│   │   ├── Dockerfile
+│   │   ├── elegant-ai-final.sh
+│   │   ├── entrypoint.sh
+│   │   ├── fix-bashrc-ai.sh
+│   │   ├── install-ai-system.sh
+│   │   ├── install-ollama.sh
+│   │   ├── ollama-chat.sh
+│   │   ├── restore-ai-system.sh
+│   │   ├── run-docker.sh
+│   │   └── use-available-model.sh
+│   ├── ai-quick-reference.txt
+│   ├── ai-system-20260130_072001
+│   │   ├── ai-code
+│   │   ├── ai-fast
+│   │   ├── ai-general
+│   │   ├── ai-orchestrator
+│   │   ├── fix-bashrc.sh
+│   │   ├── install-ai.sh
+│   │   ├── README.txt
+│   │   ├── restore.sh
+│   │   └── test.sh
+│   ├── ai-system-20260130_072001.tar.gz
+│   ├── check-progress.sh
+│   ├── compare-models.sh
+│   ├── debug.sh
+│   ├── docker
+│   │   ├── build-docker.sh
+│   │   ├── Dockerfile
+│   │   ├── entrypoint.sh
+│   │   └── run-docker.sh
+│   ├── install
+│   │   ├── install-ai-standalone.sh
+│   │   ├── install-ai-system.sh
+│   │   ├── install-all-aliases.sh
+│   │   ├── install-ollama.sh
+│   │   └── restore-ai-system.sh
+│   ├── list-alias.txt
+│   └── use-available-model.sh
+├── CHANGELOG.md
+├── db
+│   └── history.db
+├── docker-compose.yml
+├── Dockerfile
+├── install.sh
+├── logs
+├── mcp
+│   ├── claude
+│   │   ├── config
+│   │   │   └── model.json
+│   │   ├── prompts
+│   │   ├── resources
+│   │   │   └── matt-pocock-workflow.md
+│   │   └── tools
+│   ├── deepseek
+│   │   ├── config
+│   │   │   └── model.json
+│   │   ├── prompts
+│   │   ├── resources
+│   │   └── tools
+│   │       ├── ask
+│   │       ├── chat
+│   │       ├── deepseek-check.sh
+│   │       ├── deepseek-cli
+│   │       └── deepseek.sh
+│   ├── gmail
+│   │   ├── config
+│   │   │   ├── service-account.json
+│   │   │   └── setup.md
+│   │   ├── prompts
+│   │   ├── resources
+│   │   └── tools
+│   │       ├── auto-gcp-setup.sh
+│   │       ├── browser-oauth-setup.py
+│   │       ├── click-helper.py
+│   │       ├── gcp-setup
+│   │       ├── gmail-cli
+│   │       ├── gmail-setup
+│   │       └── service-account-setup.sh
+│   ├── llama
+│   │   ├── config
+│   │   │   └── model.json
+│   │   ├── prompts
+│   │   ├── resources
+│   │   └── tools
+│   │       ├── ai-code
+│   │       ├── ai-fast
+│   │       ├── ai-general
+│   │       ├── ai-orchestrator
+│   │       └── ollama-chat.sh
+│   └── voice
+│       ├── config
+│       │   └── model.json
+│       ├── prompts
+│       ├── resources
+│       └── tools
+│           ├── install-voice
+│           ├── voice-gui
+│           └── voice-input
+├── README.md
+├── sashi
+└── scripts
+    ├── git-aliases.sh
+    ├── git-setup.sh
+    ├── smart-push.sh
+    └── termux-sync.sh
+
+35 directories, 88 files
