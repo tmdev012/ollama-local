@@ -342,9 +342,20 @@
   342  alius
   343  smartpush
   344  git show 4c1981b
-  345* alias
-  346  alias > alist-v0.3.txt
-  347  smartpush
-  348  ghist
-  349  md 'kafka'
-  350  gs
+  345  alias
+  346* alias > alist-v0.3.txt
+  347* smartpush
+  348* ghist
+  349* md 'kafka'
+  350* gs
+  351* history > history.txt;gpush
+  352* gs
+  353* smartpush
+  354* ls -la
+  355* cat history.txt
+  356* git log --oneline -20 > lastseen.md; cat lastseen.md
+  357* glola
+  358* glp
+  359* glols
+  360  git log --oneline -20 >glog.txt;cat glog.txt
+  361  cd ollama-local
