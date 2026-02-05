@@ -1,0 +1,24 @@
+{
+  "name": "llama3.2",
+  "version": "3.2",
+  "upgrade_to": "llama4",
+  "type": "local",
+  "provider": "ollama",
+  "size_gb": 2.0,
+  "context_window": 8192,
+  "use_cases": [
+    "offline",
+    "general",
+    "summarization",
+    "translation"
+  ],
+  "strengths": [
+    "No internet required",
+    "Privacy (local)",
+    "Free after download"
+  ],
+  "weaknesses": [
+    "Slower than API",
+    "Limited reasoning"
+  ]
+}

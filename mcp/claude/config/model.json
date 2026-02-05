@@ -1,0 +1,32 @@
+{
+  "name": "claude-opus-4",
+  "version": "opus-4-5-20251101",
+  "type": "cli",
+  "provider": "anthropic",
+  "tool": "claude-code",
+  "context_window": 200000,
+  "use_cases": [
+    "complex_engineering",
+    "large_codebase",
+    "multi_file_refactor",
+    "architecture"
+  ],
+  "strengths": [
+    "Best reasoning",
+    "Huge context",
+    "Agentic coding",
+    "Tool use"
+  ],
+  "weaknesses": [
+    "Pro subscription required",
+    "Rate limited"
+  ],
+  "workflow": {
+    "reference": "matt-pocock-workflow.md",
+    "key_commands": [
+      "/plan - Enter plan mode",
+      "gh issue create - Store context",
+      "git diff | claude - Review changes"
+    ]
+  }
+}

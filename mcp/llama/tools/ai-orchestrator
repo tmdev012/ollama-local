@@ -1,0 +1,148 @@
+#!/bin/bash
+# AI Orchestrator - Main entry point
+
+VERSION="1.0"
+DEFAULT_MODEL="llama3.2"
+CODE_MODEL="phi3:mini"
+
+show_help() {
+    echo "🤖 AI Orchestrator v$VERSION"
+    echo "Usage: ai-orchestrator [OPTION] [PROMPT]"
+    echo ""
+    echo "Options:"
+    echo "  -i, --interactive   Start interactive chat"
+    echo "  -s, --status        Show system status"
+    echo "  -m, --models        List available models"
+    echo "  -h, --help          Show this help"
+    echo "  -v, --version       Show version"
+    echo ""
+    echo "Examples:"
+    echo "  ai-orchestrator 'Hello world'"
+    echo "  ai-orchestrator --interactive"
+    echo "  echo 'text' | ai-orchestrator 'Process this:'"
+}
+
+show_status() {
+    echo "🤖 AI System Status"
+    echo "==================="
+    
+    # Check Ollama service
+    if systemctl is-active ollama &>/dev/null; then
+        echo "✅ Ollama: Running"
+    else
+        echo "❌ Ollama: Not running"
+        echo "   Start with: sudo systemctl start ollama"
+    fi
+    
+    # List models
+    echo ""
+    echo "Available models:"
+    ollama list 2>/dev/null || echo "  (Run 'ollama pull llama3.2' to get started)"
+    
+    echo ""
+    echo "Default models:"
+    echo "  General: $DEFAULT_MODEL"
+    echo "  Code:    $CODE_MODEL"
+}
+
+# Parse arguments
+INTERACTIVE=false
+SHOW_STATUS=false
+SHOW_MODELS=false
+SHOW_HELP=false
+SHOW_VERSION=false
+PROMPT=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -i|--interactive)
+            INTERACTIVE=true
+            shift
+            ;;
+        -s|--status)
+            SHOW_STATUS=true
+            shift
+            ;;
+        -m|--models)
+            SHOW_MODELS=true
+            shift
+            ;;
+        -h|--help)
+            SHOW_HELP=true
+            shift
+            ;;
+        -v|--version)
+            SHOW_VERSION=true
+            shift
+            ;;
+        *)
+            PROMPT="$PROMPT $1"
+            shift
+            ;;
+    esac
+done
+
+# Handle options
+if [ "$SHOW_HELP" = true ]; then
+    show_help
+    exit 0
+fi
+
+if [ "$SHOW_VERSION" = true ]; then
+    echo "AI Orchestrator v$VERSION"
+    exit 0
+fi
+
+if [ "$SHOW_STATUS" = true ]; then
+    show_status
+    exit 0
+fi
+
+if [ "$SHOW_MODELS" = true ]; then
+    ollama list
+    exit 0
+fi
+
+if [ "$INTERACTIVE" = true ]; then
+    echo "🤖 Starting interactive chat with $DEFAULT_MODEL"
+    echo "Type 'quit', 'exit', or Ctrl+D to end"
+    echo ""
+    ollama run "$DEFAULT_MODEL"
+    exit 0
+fi
+
+# Handle prompts
+if [ -z "$PROMPT" ] && [ -t 0 ]; then
+    # No prompt and no stdin
+    show_help
+    exit 1
+fi
+
+# If we have stdin, read it
+if [ ! -t 0 ]; then
+    STDIN_INPUT=$(cat -)
+    if [ -n "$STDIN_INPUT" ]; then
+        PROMPT="$STDIN_INPUT $PROMPT"
+    fi
+fi
+
+# Trim whitespace
+PROMPT=$(echo "$PROMPT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+if [ -z "$PROMPT" ]; then
+    echo "Error: No prompt provided"
+    show_help
+    exit 1
+fi
+
+# Select model based on prompt content
+if [[ "$PROMPT" =~ code|program|script|function|debug|fix|write ]]; then
+    MODEL="$CODE_MODEL"
+    echo "💻 Using $MODEL (code mode)..."
+else
+    MODEL="$DEFAULT_MODEL"
+    echo "🤖 Using $MODEL..."
+fi
+
+echo ""
+ollama run "$MODEL" "$PROMPT"

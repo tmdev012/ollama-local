@@ -1,0 +1,81 @@
+#!/bin/bash
+# DeepSeek CLI - Working version
+
+API_KEY="sk-3e4f3606907441dfb38f5171037d321b"
+
+# Simple chat function
+chat() {
+    local prompt="$*"
+    
+    if [ -z "$prompt" ]; then
+        echo "Usage: deepseek-cli 'your question'"
+        return 1
+    fi
+    
+    # Escape JSON special characters
+    prompt=$(echo "$prompt" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g')
+    
+    echo "🤖 Thinking..."
+    
+    # Make the API call
+    response=$(curl -s https://api.deepseek.com/v1/chat/completions \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $API_KEY" \
+      -d "{
+        \"model\": \"deepseek-chat\",
+        \"messages\": [{\"role\": \"user\", \"content\": \"$prompt\"}],
+        \"temperature\": 0.7,
+        \"max_tokens\": 1000
+      }")
+    
+    # Extract and display the response
+    echo "$response" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print(data['choices'][0]['message']['content'])
+except Exception as e:
+    print('Error parsing response:', e)
+    print('Raw response:', sys.stdin.read())
+"
+}
+
+# Interactive mode
+interactive() {
+    echo "🤖 DeepSeek Interactive Mode"
+    echo "Type 'exit' to quit"
+    echo "=============================="
+    
+    while true; do
+        echo -n "👤 You: "
+        read -r prompt
+        
+        if [[ "$prompt" == "exit" ]] || [[ "$prompt" == "quit" ]]; then
+            echo "👋 Goodbye!"
+            break
+        fi
+        
+        if [ -n "$prompt" ]; then
+            echo -n "🤖 "
+            chat "$prompt"
+            echo
+        fi
+    done
+}
+
+# Main logic
+if [ "$1" == "--interactive" ] || [ "$1" == "-i" ]; then
+    interactive
+elif [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+    echo "DeepSeek CLI"
+    echo "Usage:"
+    echo "  deepseek-cli 'your question'"
+    echo "  deepseek-cli --interactive   # Interactive mode"
+    echo "  deepseek-cli --help          # Show this help"
+elif [ $# -eq 0 ]; then
+    echo "🤖 DeepSeek CLI"
+    echo "Try: deepseek-cli 'Hello, who are you?'"
+    echo "Or:  deepseek-cli --interactive"
+else
+    chat "$@"
+fi

@@ -1,0 +1,29 @@
+#!/bin/bash
+# Simple DeepSeek query
+
+API_KEY="sk-3e4f3606907441dfb38f5171037d321b"
+PROMPT="$*"
+
+if [ -z "$PROMPT" ]; then
+    echo "Usage: ask 'your question'"
+    exit 1
+fi
+
+# Create temp file for JSON
+TEMP_FILE=$(mktemp)
+cat > "$TEMP_FILE" << JSON
+{
+  "model": "deepseek-chat",
+  "messages": [{"role": "user", "content": "$PROMPT"}],
+  "temperature": 0.7
+}
+JSON
+
+# Make the request
+curl -s https://api.deepseek.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_KEY" \
+  -d @"$TEMP_FILE" | jq -r '.choices[0].message.content'
+
+# Clean up
+rm "$TEMP_FILE"
