@@ -16,202 +16,223 @@
       <stop offset="0%" style="stop-color:#e8f5e9"/>
       <stop offset="100%" style="stop-color:#c8e6c9"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.2"/>
+    <filter id="glow-blue">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feFlood flood-color="#1976d2" flood-opacity="0.6"/>
+      <feComposite in2="coloredBlur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="glow-orange">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feFlood flood-color="#f57c00" flood-opacity="0.6"/>
+      <feComposite in2="coloredBlur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-purple">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feFlood flood-color="#7b1fa2" flood-opacity="0.6"/>
+      <feComposite in2="coloredBlur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-green">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feFlood flood-color="#388e3c" flood-opacity="0.6"/>
+      <feComposite in2="coloredBlur" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
-
-  <style>
-    @keyframes fadeIn {
-      0% { opacity: 0; transform: translateY(-10px); }
-      100% { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-    @keyframes flowDown {
-      0% { stroke-dashoffset: 100; }
-      100% { stroke-dashoffset: 0; }
-    }
-    @keyframes dataFlow {
-      0% { offset-distance: 0%; opacity: 0; }
-      10% { opacity: 1; }
-      90% { opacity: 1; }
-      100% { offset-distance: 100%; opacity: 0; }
-    }
-    .layer1 { animation: fadeIn 0.5s ease-out 0s forwards; opacity: 0; }
-    .layer2 { animation: fadeIn 0.5s ease-out 0.5s forwards; opacity: 0; }
-    .layer3 { animation: fadeIn 0.5s ease-out 1s forwards; opacity: 0; }
-    .layer4 { animation: fadeIn 0.5s ease-out 1.5s forwards; opacity: 0; }
-    .layer5 { animation: fadeIn 0.5s ease-out 2s forwards; opacity: 0; }
-    .arrow-flow {
-      stroke-dasharray: 10 5;
-      animation: flowDown 1.5s linear infinite;
-    }
-    .data-dot {
-      offset-path: path('M 450 130 L 450 560');
-      animation: dataFlow 5s linear infinite;
-    }
-    .pulse { animation: pulse 2s ease-in-out infinite; }
-    .module-highlight:hover { filter: url(#glow); cursor: pointer; }
-  </style>
 
   <!-- Title -->
   <text x="450" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#333">SASHI Process Map</text>
 
-  <!-- Input Layer -->
-  <g class="layer1">
-    <rect x="50" y="50" width="800" height="80" rx="10" fill="url(#inputGrad)" stroke="#1976d2" stroke-width="2" filter="url(#shadow)"/>
-    <text x="70" y="75" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1565c0">📥 Input Layer</text>
+  <!-- Input Layer Box -->
+  <rect x="50" y="50" width="800" height="80" rx="10" fill="url(#inputGrad)" stroke="#1976d2" stroke-width="2"/>
+  <text x="70" y="75" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1565c0">📥 Input Layer</text>
 
-    <rect x="80" y="90" width="120" height="30" rx="5" fill="#fff" stroke="#1976d2" class="module-highlight"/>
+  <!-- CLI Input - TRIGGER START -->
+  <g id="cli-input">
+    <rect x="80" y="90" width="120" height="30" rx="5" fill="#fff" stroke="#1976d2" stroke-width="2">
+      <animate id="cli-trigger" attributeName="filter" values=";url(#glow-blue);url(#glow-blue);" dur="0.4s" begin="0s;cycle.end" fill="freeze"/>
+      <animate attributeName="stroke-width" values="2;4;2" dur="0.4s" begin="cli-trigger.begin" fill="freeze"/>
+    </rect>
     <text x="140" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#333">CLI (sashi)</text>
-
-    <rect x="220" y="90" width="120" height="30" rx="5" fill="#fff" stroke="#1976d2" class="module-highlight"/>
-    <text x="280" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#333">🎤 Voice</text>
-
-    <rect x="360" y="90" width="120" height="30" rx="5" fill="#fff" stroke="#1976d2" class="module-highlight"/>
-    <text x="420" y="110" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#333">📄 Pipe/Stdin</text>
   </g>
 
-  <!-- Animated data dot -->
-  <circle r="6" fill="#1976d2" class="data-dot">
-    <animate attributeName="opacity" values="0;1;1;0" dur="5s" repeatCount="indefinite"/>
+  <!-- Data packet moving down from input -->
+  <circle id="packet1" cx="140" cy="120" r="8" fill="#1976d2" opacity="0">
+    <animate id="p1-appear" attributeName="opacity" values="0;1" dur="0.1s" begin="cli-trigger.begin+0.3s" fill="freeze"/>
+    <animate attributeName="cy" values="120;165" dur="0.3s" begin="p1-appear.begin" fill="freeze"/>
+    <animate attributeName="cx" values="140;450" dur="0.3s" begin="p1-appear.begin" fill="freeze"/>
+    <animate attributeName="opacity" values="1;0" dur="0.1s" begin="p1-appear.begin+0.3s" fill="freeze"/>
   </circle>
 
-  <!-- Arrow down animated -->
-  <g class="layer2">
-    <path d="M 450 130 L 450 160" stroke="#1976d2" stroke-width="3" fill="none" class="arrow-flow"/>
-    <polygon points="445,155 450,165 455,155" fill="#1976d2">
-      <animate attributeName="opacity" values="0.5;1;0.5" dur="1s" repeatCount="indefinite"/>
-    </polygon>
-  </g>
+  <!-- Router Layer Box -->
+  <rect x="200" y="170" width="500" height="80" rx="10" fill="url(#routerGrad)" stroke="#f57c00" stroke-width="2"/>
+  <text x="220" y="195" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#e65100">🔀 SASHI Router v2.0</text>
 
-  <!-- Router Layer -->
-  <g class="layer2">
-    <rect x="200" y="170" width="500" height="80" rx="10" fill="url(#routerGrad)" stroke="#f57c00" stroke-width="2" filter="url(#shadow)"/>
-    <text x="220" y="195" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#e65100">🔀 SASHI Router v2.0</text>
-
-    <rect x="230" y="210" width="100" height="30" rx="5" fill="#fff" stroke="#f57c00" class="module-highlight pulse"/>
+  <!-- Parse Box -->
+  <g id="parse-box">
+    <rect x="230" y="210" width="100" height="30" rx="5" fill="#fff" stroke="#f57c00" stroke-width="2">
+      <animate id="parse-trigger" attributeName="filter" values=";url(#glow-orange);url(#glow-orange);" dur="0.4s" begin="p1-appear.begin+0.35s" fill="freeze"/>
+      <animate attributeName="stroke-width" values="2;4;2" dur="0.4s" begin="parse-trigger.begin" fill="freeze"/>
+    </rect>
     <text x="280" y="230" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#333">Parse</text>
+  </g>
 
-    <rect x="350" y="210" width="100" height="30" rx="5" fill="#fff" stroke="#f57c00" class="module-highlight"/>
+  <!-- Arrow Parse to Route -->
+  <line x1="330" y1="225" x2="350" y2="225" stroke="#f57c00" stroke-width="2"/>
+  <circle cx="340" cy="225" r="5" fill="#f57c00" opacity="0">
+    <animate attributeName="opacity" values="0;1;0" dur="0.2s" begin="parse-trigger.begin+0.3s" fill="freeze"/>
+    <animate attributeName="cx" values="330;350" dur="0.2s" begin="parse-trigger.begin+0.3s" fill="freeze"/>
+  </circle>
+
+  <!-- Route Box -->
+  <g id="route-box">
+    <rect x="350" y="210" width="100" height="30" rx="5" fill="#fff" stroke="#f57c00" stroke-width="2">
+      <animate id="route-trigger" attributeName="filter" values=";url(#glow-orange);url(#glow-orange);" dur="0.4s" begin="parse-trigger.begin+0.5s" fill="freeze"/>
+      <animate attributeName="stroke-width" values="2;4;2" dur="0.4s" begin="route-trigger.begin" fill="freeze"/>
+    </rect>
     <text x="400" y="230" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#333">Route</text>
+  </g>
 
-    <rect x="470" y="210" width="100" height="30" rx="5" fill="#fff" stroke="#f57c00" class="module-highlight"/>
+  <!-- Arrow Route to Async -->
+  <line x1="450" y1="225" x2="470" y2="225" stroke="#f57c00" stroke-width="2"/>
+  <circle cx="460" cy="225" r="5" fill="#f57c00" opacity="0">
+    <animate attributeName="opacity" values="0;1;0" dur="0.2s" begin="route-trigger.begin+0.3s" fill="freeze"/>
+    <animate attributeName="cx" values="450;470" dur="0.2s" begin="route-trigger.begin+0.3s" fill="freeze"/>
+  </circle>
+
+  <!-- Async Log Box -->
+  <g id="async-box">
+    <rect x="470" y="210" width="100" height="30" rx="5" fill="#fff" stroke="#f57c00" stroke-width="2">
+      <animate id="async-trigger" attributeName="filter" values=";url(#glow-orange);url(#glow-orange);" dur="0.4s" begin="route-trigger.begin+0.5s" fill="freeze"/>
+      <animate attributeName="stroke-width" values="2;4;2" dur="0.4s" begin="async-trigger.begin" fill="freeze"/>
+    </rect>
     <text x="520" y="230" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#333">Async Log</text>
-
-    <!-- Arrows between router boxes -->
-    <path d="M 330 225 L 350 225" stroke="#f57c00" stroke-width="2" class="arrow-flow"/>
-    <path d="M 450 225 L 470 225" stroke="#f57c00" stroke-width="2" class="arrow-flow"/>
   </g>
 
-  <!-- Arrow down -->
-  <g class="layer3">
-    <path d="M 450 250 L 450 290" stroke="#7b1fa2" stroke-width="3" fill="none" class="arrow-flow"/>
-    <polygon points="445,285 450,295 455,285" fill="#7b1fa2">
-      <animate attributeName="opacity" values="0.5;1;0.5" dur="1s" repeatCount="indefinite"/>
-    </polygon>
+  <!-- Data packet to MCP -->
+  <circle id="packet2" cx="400" cy="240" r="8" fill="#7b1fa2" opacity="0">
+    <animate id="p2-appear" attributeName="opacity" values="0;1" dur="0.1s" begin="route-trigger.begin+0.4s" fill="freeze"/>
+    <animate attributeName="cy" values="240;345" dur="0.4s" begin="p2-appear.begin" fill="freeze"/>
+    <animate attributeName="cx" values="400;145" dur="0.4s" begin="p2-appear.begin" fill="freeze"/>
+    <animate attributeName="opacity" values="1;0" dur="0.1s" begin="p2-appear.begin+0.4s" fill="freeze"/>
+  </circle>
+
+  <!-- MCP Layer Box -->
+  <rect x="50" y="300" width="800" height="100" rx="10" fill="url(#mcpGrad)" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="70" y="325" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#6a1b9a">📦 MCP Modules</text>
+
+  <!-- DeepSeek Module -->
+  <g id="deepseek-mod">
+    <rect x="80" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2" stroke-width="2">
+      <animate id="ds-trigger" attributeName="filter" values=";url(#glow-purple);url(#glow-purple);" dur="0.5s" begin="p2-appear.begin+0.45s" fill="freeze"/>
+      <animate attributeName="stroke-width" values="2;4;2" dur="0.5s" begin="ds-trigger.begin" fill="freeze"/>
+    </rect>
+    <text x="145" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">☁️ DeepSeek</text>
+    <text x="145" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Cloud API</text>
   </g>
 
-  <!-- MCP Layer -->
-  <g class="layer3">
-    <rect x="50" y="300" width="800" height="100" rx="10" fill="url(#mcpGrad)" stroke="#7b1fa2" stroke-width="2" filter="url(#shadow)"/>
-    <text x="70" y="325" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#6a1b9a">📦 MCP Modules</text>
-
-    <g class="module-highlight">
-      <rect x="80" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
-      <text x="145" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">☁️ DeepSeek</text>
-      <text x="145" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Cloud API</text>
-      <animate attributeName="opacity" values="1;0.7;1" dur="3s" begin="0s" repeatCount="indefinite"/>
-    </g>
-
-    <g class="module-highlight">
-      <rect x="230" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
-      <text x="295" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">🦙 Llama 3.2</text>
-      <text x="295" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Ollama Local</text>
-      <animate attributeName="opacity" values="1;0.7;1" dur="3s" begin="0.5s" repeatCount="indefinite"/>
-    </g>
-
-    <g class="module-highlight">
-      <rect x="380" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
-      <text x="445" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">🧠 Claude</text>
-      <text x="445" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Opus 4.5</text>
-      <animate attributeName="opacity" values="1;0.7;1" dur="3s" begin="1s" repeatCount="indefinite"/>
-    </g>
-
-    <g class="module-highlight">
-      <rect x="530" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
-      <text x="595" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">📧 Gmail</text>
-      <text x="595" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Context API</text>
-      <animate attributeName="opacity" values="1;0.7;1" dur="3s" begin="1.5s" repeatCount="indefinite"/>
-    </g>
-
-    <g class="module-highlight">
-      <rect x="680" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2"/>
-      <text x="745" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">🗣️ Voice</text>
-      <text x="745" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Google STT</text>
-      <animate attributeName="opacity" values="1;0.7;1" dur="3s" begin="2s" repeatCount="indefinite"/>
-    </g>
+  <!-- Processing indicator on DeepSeek -->
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;1;1;0" dur="1s" begin="ds-trigger.begin" fill="freeze"/>
+    <circle cx="200" cy="367" r="3" fill="#7b1fa2">
+      <animate attributeName="r" values="3;5;3" dur="0.3s" repeatCount="3" begin="ds-trigger.begin"/>
+    </circle>
+    <circle cx="190" cy="367" r="3" fill="#7b1fa2">
+      <animate attributeName="r" values="3;5;3" dur="0.3s" repeatCount="3" begin="ds-trigger.begin+0.1s"/>
+    </circle>
+    <circle cx="180" cy="367" r="3" fill="#7b1fa2">
+      <animate attributeName="r" values="3;5;3" dur="0.3s" repeatCount="3" begin="ds-trigger.begin+0.2s"/>
+    </circle>
   </g>
 
-  <!-- Arrow down -->
-  <g class="layer4">
-    <path d="M 450 400 L 450 440" stroke="#388e3c" stroke-width="3" fill="none" class="arrow-flow"/>
-    <polygon points="445,435 450,445 455,435" fill="#388e3c">
-      <animate attributeName="opacity" values="0.5;1;0.5" dur="1s" repeatCount="indefinite"/>
-    </polygon>
-  </g>
+  <!-- Other MCP modules (static) -->
+  <rect x="230" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="295" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">🦙 Llama 3.2</text>
+  <text x="295" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Ollama Local</text>
 
-  <!-- Storage Layer -->
-  <g class="layer4">
-    <rect x="200" y="450" width="500" height="80" rx="10" fill="url(#storageGrad)" stroke="#388e3c" stroke-width="2" filter="url(#shadow)"/>
-    <text x="220" y="475" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#2e7d32">💾 Storage Layer</text>
+  <rect x="380" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="445" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">🧠 Claude</text>
+  <text x="445" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Opus 4.5</text>
 
-    <ellipse cx="320" cy="505" rx="70" ry="25" fill="#fff" stroke="#388e3c" stroke-width="2" class="module-highlight">
-      <animate attributeName="ry" values="25;27;25" dur="2s" repeatCount="indefinite"/>
+  <rect x="530" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="595" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">📧 Gmail</text>
+  <text x="595" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Context API</text>
+
+  <rect x="680" y="345" width="130" height="45" rx="5" fill="#fff" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="745" y="365" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">🗣️ Voice</text>
+  <text x="745" y="380" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Google STT</text>
+
+  <!-- Labels -->
+  <text x="145" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Fast</text>
+  <text x="295" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Offline</text>
+  <text x="445" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Complex</text>
+  <text x="595" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Context</text>
+  <text x="745" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Input</text>
+
+  <!-- Response packet going to Storage -->
+  <circle id="packet3" cx="145" cy="390" r="8" fill="#388e3c" opacity="0">
+    <animate id="p3-appear" attributeName="opacity" values="0;1" dur="0.1s" begin="ds-trigger.begin+1s" fill="freeze"/>
+    <animate attributeName="cy" values="390;505" dur="0.4s" begin="p3-appear.begin" fill="freeze"/>
+    <animate attributeName="cx" values="145;320" dur="0.4s" begin="p3-appear.begin" fill="freeze"/>
+    <animate attributeName="opacity" values="1;0" dur="0.1s" begin="p3-appear.begin+0.4s" fill="freeze"/>
+  </circle>
+
+  <!-- Storage Layer Box -->
+  <rect x="200" y="450" width="500" height="80" rx="10" fill="url(#storageGrad)" stroke="#388e3c" stroke-width="2"/>
+  <text x="220" y="475" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#2e7d32">💾 Storage Layer</text>
+
+  <!-- SQLite -->
+  <g id="sqlite-mod">
+    <ellipse cx="320" cy="505" rx="70" ry="25" fill="#fff" stroke="#388e3c" stroke-width="2">
+      <animate id="sql-trigger" attributeName="filter" values=";url(#glow-green);url(#glow-green);" dur="0.4s" begin="p3-appear.begin+0.45s" fill="freeze"/>
+      <animate attributeName="stroke-width" values="2;4;2" dur="0.4s" begin="sql-trigger.begin" fill="freeze"/>
     </ellipse>
     <text x="320" y="502" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">SQLite</text>
     <text x="320" y="516" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">4 tables, 11 idx</text>
-
-    <rect x="450" y="485" width="120" height="40" rx="5" fill="#fff" stroke="#388e3c" class="module-highlight"/>
-    <text x="510" y="505" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">📁 Backups</text>
-    <text x="510" y="518" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">tree_*.txt</text>
   </g>
 
-  <!-- Output -->
-  <g class="layer5">
-    <rect x="350" y="560" width="200" height="50" rx="10" fill="#fce4ec" stroke="#c2185b" stroke-width="2" filter="url(#shadow)">
-      <animate attributeName="stroke-width" values="2;4;2" dur="2s" repeatCount="indefinite"/>
+  <!-- Backups -->
+  <rect x="450" y="485" width="120" height="40" rx="5" fill="#fff" stroke="#388e3c" stroke-width="2"/>
+  <text x="510" y="505" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#333">📁 Backups</text>
+  <text x="510" y="518" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">tree_*.txt</text>
+
+  <!-- Output packet -->
+  <circle id="packet4" cx="320" cy="530" r="8" fill="#c2185b" opacity="0">
+    <animate id="p4-appear" attributeName="opacity" values="0;1" dur="0.1s" begin="sql-trigger.begin+0.4s" fill="freeze"/>
+    <animate attributeName="cy" values="530;585" dur="0.3s" begin="p4-appear.begin" fill="freeze"/>
+    <animate attributeName="cx" values="320;450" dur="0.3s" begin="p4-appear.begin" fill="freeze"/>
+    <animate attributeName="opacity" values="1;0" dur="0.1s" begin="p4-appear.begin+0.3s" fill="freeze"/>
+  </circle>
+
+  <!-- Output Box -->
+  <g id="output-box">
+    <rect x="350" y="560" width="200" height="50" rx="10" fill="#fce4ec" stroke="#c2185b" stroke-width="2">
+      <animate id="out-trigger" attributeName="stroke-width" values="2;4;2" dur="0.5s" begin="p4-appear.begin+0.35s" fill="freeze"/>
+      <animate attributeName="fill" values="#fce4ec;#f8bbd9;#fce4ec" dur="0.5s" begin="out-trigger.begin" fill="freeze"/>
     </rect>
     <text x="450" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#880e4f">📤 Terminal Output</text>
-
-    <path d="M 450 530 L 450 560" stroke="#c2185b" stroke-width="3" fill="none" class="arrow-flow"/>
   </g>
 
-  <!-- Labels with fade -->
-  <g class="layer3">
-    <text x="145" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Fast</text>
-    <text x="295" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Offline</text>
-    <text x="445" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Complex</text>
-    <text x="595" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Context</text>
-    <text x="745" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">Input</text>
+  <!-- Success checkmark -->
+  <g opacity="0">
+    <animate id="cycle" attributeName="opacity" values="0;1;1;0" dur="1s" begin="out-trigger.begin+0.3s" fill="freeze"/>
+    <circle cx="560" cy="585" r="15" fill="#4caf50"/>
+    <path d="M 552 585 L 558 591 L 570 579" stroke="#fff" stroke-width="3" fill="none"/>
   </g>
 
-  <!-- Animated status indicator -->
-  <g transform="translate(820, 620)">
-    <circle r="8" fill="#4caf50">
-      <animate attributeName="r" values="6;8;6" dur="1s" repeatCount="indefinite"/>
-      <animate attributeName="opacity" values="0.7;1;0.7" dur="1s" repeatCount="indefinite"/>
+  <!-- Timer/Loop indicator -->
+  <g transform="translate(850, 620)">
+    <circle r="15" fill="none" stroke="#ddd" stroke-width="3"/>
+    <circle r="15" fill="none" stroke="#4caf50" stroke-width="3" stroke-dasharray="94" stroke-dashoffset="94" transform="rotate(-90)">
+      <animate attributeName="stroke-dashoffset" values="94;0" dur="5s" begin="0s;cycle.end" fill="freeze"/>
     </circle>
-    <text x="15" y="5" font-family="Arial, sans-serif" font-size="10" fill="#666">Live</text>
+    <text x="0" y="4" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">5s</text>
   </g>
+
+  <!-- Reset all animations after cycle -->
+  <rect width="0" height="0" opacity="0">
+    <animate attributeName="opacity" values="0;0" dur="0.01s" begin="cycle.end+0.5s"/>
+  </rect>
 </svg>
