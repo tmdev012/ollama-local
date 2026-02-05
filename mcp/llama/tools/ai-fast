@@ -1,0 +1,17 @@
+#!/bin/bash
+# Fast AI assistant
+
+if [ -t 0 ]; then
+    if [ $# -eq 0 ]; then
+        echo "Usage: ai-fast [PROMPT]"
+        exit 1
+    fi
+    prompt="Give a concise answer: $*"
+else
+    prompt="Give a concise answer: $(cat -)"
+    if [ $# -gt 0 ]; then
+        prompt="$prompt $*"
+    fi
+fi
+
+ollama run phi3:mini "$prompt"

@@ -1,0 +1,22 @@
+#!/bin/bash
+# Code-specific AI assistant
+
+if [ -t 0 ]; then
+    # No stdin, use arguments
+    if [ $# -eq 0 ]; then
+        echo "Usage: ai-code [PROMPT]"
+        echo "   Or: command | ai-code"
+        exit 1
+    fi
+    prompt="$*"
+else
+    # Read from stdin
+    prompt=$(cat -)
+    if [ $# -gt 0 ]; then
+        prompt="$prompt $*"
+    fi
+fi
+
+echo "💻 Code Assistant (phi3:mini):"
+echo ""
+ollama run phi3:mini "$prompt"

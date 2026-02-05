@@ -1,0 +1,20 @@
+#!/bin/bash
+# General knowledge AI assistant
+
+if [ -t 0 ]; then
+    if [ $# -eq 0 ]; then
+        echo "Usage: ai-general [PROMPT]"
+        echo "   Or: command | ai-general"
+        exit 1
+    fi
+    prompt="$*"
+else
+    prompt=$(cat -)
+    if [ $# -gt 0 ]; then
+        prompt="$prompt $*"
+    fi
+fi
+
+echo "🧠 General Assistant (llama3.2):"
+echo ""
+ollama run llama3.2 "$prompt"

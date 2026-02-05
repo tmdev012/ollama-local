@@ -1,0 +1,35 @@
+#!/bin/bash
+# Interactive DeepSeek chat
+
+KEY="sk-3e4f3606907441dfb38f5171037d321b"
+
+echo "🤖 DeepSeek Chat - Type 'exit' to quit"
+echo "======================================"
+
+while true; do
+    echo -n "👤 You: "
+    read QUESTION
+    
+    if [[ "$QUESTION" == "exit" ]] || [[ "$QUESTION" == "quit" ]]; then
+        echo "👋 Goodbye!"
+        break
+    fi
+    
+    if [ -n "$QUESTION" ]; then
+        # Escape quotes
+        ESCAPED_QUESTION=$(echo "$QUESTION" | sed 's/"/\\"/g')
+        
+        echo -n "🤖 "
+        
+        curl -s https://api.deepseek.com/v1/chat/completions \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $KEY" \
+          -d "{
+            \"model\": \"deepseek-chat\",
+            \"messages\": [{\"role\": \"user\", \"content\": \"$ESCAPED_QUESTION\"}],
+            \"temperature\": 0.7
+          }" | jq -r '.choices[0].message.content'
+        
+        echo
+    fi
+done

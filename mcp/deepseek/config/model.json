@@ -1,0 +1,25 @@
+{
+  "name": "deepseek-chat",
+  "version": "v3",
+  "type": "api",
+  "provider": "deepseek",
+  "endpoint": "https://api.deepseek.com/v1/chat/completions",
+  "cost_per_million_tokens": 0.14,
+  "context_window": 64000,
+  "use_cases": [
+    "code",
+    "reasoning",
+    "analysis",
+    "complex_tasks"
+  ],
+  "strengths": [
+    "10x faster than local",
+    "Stronger reasoning",
+    "Huge context window",
+    "Very cheap"
+  ],
+  "weaknesses": [
+    "Requires internet",
+    "API costs (minimal)"
+  ]
+}
