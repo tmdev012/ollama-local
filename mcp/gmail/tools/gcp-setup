@@ -1,0 +1,50 @@
+#!/bin/bash
+# Automated GCP OAuth Setup for Gmail API
+
+set -e
+PROJECT_ID="tm012-git-tracking"
+CONFIG_DIR="$HOME/ollama-local/mcp/gmail/config"
+
+echo "GCP Gmail API Setup"
+echo "==================="
+
+# Check for gcloud
+if ! command -v gcloud &>/dev/null; then
+    echo "Installing Google Cloud CLI..."
+    curl -sSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz -o /tmp/gcloud.tar.gz
+    tar -xzf /tmp/gcloud.tar.gz -C $HOME
+    $HOME/google-cloud-sdk/install.sh --quiet --path-update true
+    export PATH="$HOME/google-cloud-sdk/bin:$PATH"
+    echo 'export PATH="$HOME/google-cloud-sdk/bin:$PATH"' >> ~/.bashrc
+fi
+
+echo ""
+echo "Step 1: Authenticate with Google"
+gcloud auth login --no-launch-browser
+
+echo ""
+echo "Step 2: Set project"
+gcloud config set project $PROJECT_ID
+
+echo ""
+echo "Step 3: Enable Gmail API"
+gcloud services enable gmail.googleapis.com
+
+echo ""
+echo "Step 4: Create OAuth consent screen"
+# This requires manual setup or using the API
+
+echo ""
+echo "Step 5: Create OAuth credentials"
+gcloud oauth-clients create sashi-cli \
+    --type=desktop \
+    --format=json > "$CONFIG_DIR/credentials.json" 2>/dev/null || {
+    echo "OAuth client creation requires browser. Opening..."
+    xdg-open "https://console.cloud.google.com/apis/credentials/oauthclient?project=$PROJECT_ID"
+    echo ""
+    echo "After downloading, run:"
+    echo "mv ~/Downloads/client_secret_*.json $CONFIG_DIR/credentials.json"
+}
+
+echo ""
+echo "Setup complete!"

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  sashi:
+    build: .
+    container_name: sashi-ai
+    hostname: sashi
+    restart: unless-stopped
+    ports:
+      - "11434:11434"  # Ollama API
+    volumes:
+      - ollama-models:/root/.ollama
+      - sashi-data:/root/ollama-local/db
+      - ./.env:/root/ollama-local/.env:ro
+    environment:
+      - OLLAMA_HOST=http://localhost:11434
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
+volumes:
+  ollama-models:
+    name: sashi-ollama-models
+  sashi-data:
+    name: sashi-history-db
