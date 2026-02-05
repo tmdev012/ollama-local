@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""
+SASHI Voice GUI - Desktop application for voice-to-AI
+Can be packaged as .deb using fpm or built with PyInstaller
+
+Dependencies:
+  sudo apt install portaudio19-dev python3-pyaudio python3-tk
+  pip3 install SpeechRecognition pyaudio
+
+Build .deb:
+  pip3 install pyinstaller
+  pyinstaller --onefile --windowed voice-gui
+  # Then use fpm to create .deb
+"""
+
+import os
+import sys
+import subprocess
+import threading
+import queue
+
+try:
+    import tkinter as tk
+    from tkinter import ttk, scrolledtext
+    import speech_recognition as sr
+except ImportError as e:
+    print(f"Missing dependency: {e}")
+    print("Install: sudo apt install python3-tk portaudio19-dev")
+    print("         pip3 install SpeechRecognition pyaudio")
+    sys.exit(1)
+
+SASHI_PATH = os.path.expanduser("~/ollama-local/sashi")
+
+class VoiceGUI:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("SASHI Voice Assistant")
+        self.root.geometry("600x500")
+        self.root.configure(bg='#1e1e1e')
+
+        self.recognizer = sr.Recognizer()
+        self.microphone = sr.Microphone()
+        self.listening = False
+        self.backend = tk.StringVar(value='ask')
+
+        self.setup_ui()
+        self.calibrate()
+
+    def setup_ui(self):
+        # Style
+        style = ttk.Style()
+        style.theme_use('clam')
+
+        # Header
+        header = tk.Frame(self.root, bg='#2d2d2d', pady=10)
+        header.pack(fill='x')
+
+        tk.Label(header, text="🎤 SASHI Voice", font=('Helvetica', 18, 'bold'),
+                bg='#2d2d2d', fg='white').pack()
+
+        # Backend selector
+        backend_frame = tk.Frame(self.root, bg='#1e1e1e', pady=5)
+        backend_frame.pack(fill='x', padx=20)
+
+        tk.Label(backend_frame, text="Backend:", bg='#1e1e1e', fg='white').pack(side='left')
+        ttk.Radiobutton(backend_frame, text="DeepSeek (Cloud)", variable=self.backend,
+                       value='ask').pack(side='left', padx=10)
+        ttk.Radiobutton(backend_frame, text="Llama (Local)", variable=self.backend,
+                       value='local').pack(side='left', padx=10)
+        ttk.Radiobutton(backend_frame, text="Code Mode", variable=self.backend,
+                       value='code').pack(side='left', padx=10)
+
+        # Status
+        self.status_var = tk.StringVar(value="Ready")
+        self.status_label = tk.Label(self.root, textvariable=self.status_var,
+                                     font=('Helvetica', 12), bg='#1e1e1e', fg='#888')
+        self.status_label.pack(pady=5)
+
+        # Listen button
+        self.listen_btn = tk.Button(self.root, text="🎤 Click to Speak",
+                                    font=('Helvetica', 14), bg='#4CAF50', fg='white',
+                                    activebackground='#45a049', pady=10, padx=20,
+                                    command=self.toggle_listen)
+        self.listen_btn.pack(pady=20)
+
+        # Transcription display
+        tk.Label(self.root, text="Transcription:", bg='#1e1e1e', fg='white',
+                anchor='w').pack(fill='x', padx=20)
+        self.transcript = tk.Text(self.root, height=3, bg='#2d2d2d', fg='#00ff00',
+                                 font=('Consolas', 11), insertbackground='white')
+        self.transcript.pack(fill='x', padx=20, pady=5)
+
+        # Response display
+        tk.Label(self.root, text="AI Response:", bg='#1e1e1e', fg='white',
+                anchor='w').pack(fill='x', padx=20)
+        self.response = scrolledtext.ScrolledText(self.root, height=12, bg='#2d2d2d',
+                                                  fg='white', font=('Consolas', 10),
+                                                  insertbackground='white')
+        self.response.pack(fill='both', expand=True, padx=20, pady=5)
+
+        # Footer
+        footer = tk.Frame(self.root, bg='#1e1e1e', pady=5)
+        footer.pack(fill='x')
+        tk.Label(footer, text="Press Ctrl+Q to quit | Ctrl+L to listen",
+                bg='#1e1e1e', fg='#666').pack()
+
+        # Keyboard shortcuts
+        self.root.bind('<Control-q>', lambda e: self.root.quit())
+        self.root.bind('<Control-l>', lambda e: self.toggle_listen())
+        self.root.bind('<space>', lambda e: self.toggle_listen() if not self.listening else None)
+
+    def calibrate(self):
+        """Calibrate microphone for ambient noise"""
+        self.status_var.set("Calibrating microphone...")
+        self.root.update()
+
+        def _calibrate():
+            with self.microphone as source:
+                self.recognizer.adjust_for_ambient_noise(source, duration=1)
+            self.status_var.set("Ready - Click button or press Space to speak")
+
+        threading.Thread(target=_calibrate, daemon=True).start()
+
+    def toggle_listen(self):
+        """Toggle listening state"""
+        if self.listening:
+            return
+
+        self.listening = True
+        self.listen_btn.config(text="🔴 Listening...", bg='#f44336')
+        self.status_var.set("Speak now...")
+        self.transcript.delete('1.0', tk.END)
+
+        threading.Thread(target=self._listen, daemon=True).start()
+
+    def _listen(self):
+        """Background listening thread"""
+        try:
+            with self.microphone as source:
+                audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=30)
+
+            self.status_var.set("Processing speech...")
+            text = self.recognizer.recognize_google(audio)
+
+            self.root.after(0, lambda: self._on_transcription(text))
+
+        except sr.WaitTimeoutError:
+            self.root.after(0, lambda: self._on_error("No speech detected"))
+        except sr.UnknownValueError:
+            self.root.after(0, lambda: self._on_error("Could not understand audio"))
+        except sr.RequestError as e:
+            self.root.after(0, lambda: self._on_error(f"Recognition error: {e}"))
+
+    def _on_transcription(self, text):
+        """Handle successful transcription"""
+        self.transcript.delete('1.0', tk.END)
+        self.transcript.insert('1.0', text)
+
+        self.status_var.set("Sending to AI...")
+        self._send_to_sashi(text)
+
+    def _on_error(self, msg):
+        """Handle errors"""
+        self.status_var.set(msg)
+        self._reset_button()
+
+    def _reset_button(self):
+        """Reset listen button state"""
+        self.listening = False
+        self.listen_btn.config(text="🎤 Click to Speak", bg='#4CAF50')
+
+    def _send_to_sashi(self, text):
+        """Send to SASHI in background"""
+        def _run():
+            try:
+                result = subprocess.run(
+                    [SASHI_PATH, self.backend.get(), text],
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+                response = result.stdout or result.stderr or "No response"
+                self.root.after(0, lambda: self._on_response(response))
+            except subprocess.TimeoutExpired:
+                self.root.after(0, lambda: self._on_response("Request timed out"))
+            except Exception as e:
+                self.root.after(0, lambda: self._on_response(f"Error: {e}"))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _on_response(self, response):
+        """Display AI response"""
+        self.response.delete('1.0', tk.END)
+        self.response.insert('1.0', response)
+        self.status_var.set("Ready")
+        self._reset_button()
+
+    def run(self):
+        """Start the GUI"""
+        self.root.mainloop()
+
+
+def main():
+    app = VoiceGUI()
+    app.run()
+
+
+if __name__ == '__main__':
+    main()

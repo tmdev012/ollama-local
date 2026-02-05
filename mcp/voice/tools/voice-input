@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""
+SASHI Voice Input - Real-time speech-to-text for AI prompts
+Captures microphone input and sends to SASHI for processing
+
+Dependencies:
+  sudo apt install portaudio19-dev python3-pyaudio
+  pip3 install SpeechRecognition pyaudio
+
+Optional GUI:
+  pip3 install tkinter  # Usually pre-installed
+"""
+
+import os
+import sys
+import subprocess
+import argparse
+import threading
+import queue
+import time
+
+# Check dependencies
+try:
+    import speech_recognition as sr
+except ImportError:
+    print("Install: pip3 install SpeechRecognition pyaudio")
+    print("Also:    sudo apt install portaudio19-dev")
+    sys.exit(1)
+
+SASHI_PATH = os.path.expanduser("~/ollama-local/sashi")
+
+class VoiceInput:
+    def __init__(self, backend='deepseek', continuous=False):
+        self.recognizer = sr.Recognizer()
+        self.microphone = sr.Microphone()
+        self.backend = backend
+        self.continuous = continuous
+        self.running = False
+        self.audio_queue = queue.Queue()
+
+        # Adjust for ambient noise
+        with self.microphone as source:
+            print("Calibrating for ambient noise...")
+            self.recognizer.adjust_for_ambient_noise(source, duration=1)
+            print("Ready!")
+
+    def listen_once(self):
+        """Listen for a single voice command"""
+        with self.microphone as source:
+            print("\n🎤 Listening... (speak now)")
+            try:
+                audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=30)
+                print("Processing...")
+                text = self.recognizer.recognize_google(audio)
+                return text
+            except sr.WaitTimeoutError:
+                print("No speech detected")
+                return None
+            except sr.UnknownValueError:
+                print("Could not understand audio")
+                return None
+            except sr.RequestError as e:
+                print(f"Recognition error: {e}")
+                return None
+
+    def send_to_sashi(self, text):
+        """Send transcribed text to SASHI"""
+        if not text:
+            return
+
+        print(f"\n📝 You said: {text}")
+        print("-" * 40)
+
+        cmd = self.backend if self.backend in ['local', 'code'] else 'ask'
+        result = subprocess.run(
+            [SASHI_PATH, cmd, text],
+            capture_output=True,
+            text=True
+        )
+        print(result.stdout)
+        if result.stderr:
+            print(f"Error: {result.stderr}", file=sys.stderr)
+
+    def listen_continuous(self):
+        """Continuous listening mode"""
+        print("\n🎙️  Continuous mode - say 'exit' or 'quit' to stop")
+        print("Say 'switch local' for offline mode, 'switch cloud' for DeepSeek")
+
+        while self.running:
+            text = self.listen_once()
+            if text:
+                lower = text.lower().strip()
+
+                # Control commands
+                if lower in ['exit', 'quit', 'stop']:
+                    print("Goodbye!")
+                    break
+                elif lower == 'switch local':
+                    self.backend = 'local'
+                    print("Switched to LOCAL (Llama)")
+                    continue
+                elif lower == 'switch cloud':
+                    self.backend = 'ask'
+                    print("Switched to CLOUD (DeepSeek)")
+                    continue
+
+                self.send_to_sashi(text)
+
+    def run(self):
+        """Main entry point"""
+        self.running = True
+
+        if self.continuous:
+            self.listen_continuous()
+        else:
+            text = self.listen_once()
+            self.send_to_sashi(text)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='SASHI Voice Input')
+    parser.add_argument('--backend', '-b', choices=['ask', 'local', 'code'],
+                       default='ask', help='AI backend (default: ask/DeepSeek)')
+    parser.add_argument('--continuous', '-c', action='store_true',
+                       help='Continuous listening mode')
+    parser.add_argument('--list-mics', action='store_true',
+                       help='List available microphones')
+
+    args = parser.parse_args()
+
+    if args.list_mics:
+        print("Available microphones:")
+        for i, name in enumerate(sr.Microphone.list_microphone_names()):
+            print(f"  {i}: {name}")
+        return
+
+    voice = VoiceInput(backend=args.backend, continuous=args.continuous)
+
+    try:
+        voice.run()
+    except KeyboardInterrupt:
+        print("\nStopped")
+
+
+if __name__ == '__main__':
+    main()

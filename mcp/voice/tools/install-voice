@@ -1,0 +1,25 @@
+#!/bin/bash
+# Install voice dependencies for SASHI
+
+set -e
+
+echo "Installing SASHI Voice dependencies..."
+
+# System packages
+sudo apt update
+sudo apt install -y portaudio19-dev python3-pyaudio python3-tk
+
+# Python packages
+pip3 install --user SpeechRecognition pyaudio
+
+echo ""
+echo "Voice module installed!"
+echo ""
+echo "Usage:"
+echo "  sashi voice              # Single voice prompt"
+echo "  sashi voice --continuous # Continuous listening"
+echo "  sashi voice --gui        # Desktop GUI"
+echo ""
+echo "Or directly:"
+echo "  ~/ollama-local/mcp/voice/tools/voice-input"
+echo "  ~/ollama-local/mcp/voice/tools/voice-gui"

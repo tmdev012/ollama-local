@@ -1,0 +1,22 @@
+{
+  "name": "voice-input",
+  "version": "1.0.0",
+  "type": "input",
+  "provider": "google-speech",
+  "dependencies": [
+    "portaudio19-dev",
+    "python3-pyaudio",
+    "SpeechRecognition"
+  ],
+  "features": [
+    "real-time transcription",
+    "continuous mode",
+    "GUI interface",
+    "backend switching"
+  ],
+  "commands": {
+    "cli": "voice-input",
+    "gui": "voice-gui",
+    "continuous": "voice-input --continuous"
+  }
+}
