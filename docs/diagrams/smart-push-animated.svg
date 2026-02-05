@@ -1,0 +1,240 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 320">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes slideIn {
+      0% { opacity: 0; transform: translateX(-20px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    @keyframes flowArrow {
+      0% { stroke-dashoffset: 20; }
+      100% { stroke-dashoffset: 0; }
+    }
+    @keyframes categoryFan {
+      0% { opacity: 0; transform: translateY(10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes success {
+      0% { fill: #c8e6c9; }
+      50% { fill: #81c784; }
+      100% { fill: #c8e6c9; }
+    }
+    .step1 { animation: slideIn 0.4s ease-out 0s forwards; opacity: 0; }
+    .step2 { animation: slideIn 0.4s ease-out 0.5s forwards; opacity: 0; }
+    .step3 { animation: slideIn 0.4s ease-out 1.5s forwards; opacity: 0; }
+    .step4 { animation: slideIn 0.4s ease-out 2s forwards; opacity: 0; }
+    .step5 { animation: slideIn 0.4s ease-out 2.5s forwards; opacity: 0; }
+    .step6 { animation: slideIn 0.4s ease-out 3s forwards; opacity: 0; }
+    .step7 { animation: slideIn 0.4s ease-out 3.5s forwards; opacity: 0; }
+    .cat1 { animation: categoryFan 0.3s ease-out 0.7s forwards; opacity: 0; }
+    .cat2 { animation: categoryFan 0.3s ease-out 0.9s forwards; opacity: 0; }
+    .cat3 { animation: categoryFan 0.3s ease-out 1.1s forwards; opacity: 0; }
+    .cat4 { animation: categoryFan 0.3s ease-out 1.3s forwards; opacity: 0; }
+    .flow-line { stroke-dasharray: 10 5; animation: flowArrow 0.8s linear infinite; }
+    .success-box { animation: success 2s ease-in-out infinite; }
+    .pulse-box { animation: pulse 2s ease-in-out infinite; }
+  </style>
+
+  <!-- Title -->
+  <text x="450" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#333">Smart Push Flow</text>
+
+  <!-- Step 1: git add -->
+  <g class="step1">
+    <rect x="20" y="60" width="100" height="50" rx="8" fill="#bbdefb" stroke="#1976d2" stroke-width="2" filter="url(#shadow)" class="pulse-box"/>
+    <text x="70" y="85" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#1565c0">git add -A</text>
+    <text x="70" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">Stage all</text>
+  </g>
+
+  <line x1="120" y1="85" x2="150" y2="85" stroke="#666" stroke-width="2" class="flow-line" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 2: Categorize Diamond -->
+  <g class="step2">
+    <polygon points="200,55 250,85 200,115 150,85" fill="#fff3e0" stroke="#f57c00" stroke-width="2" filter="url(#shadow)">
+      <animate attributeName="stroke-width" values="2;3;2" dur="1.5s" repeatCount="indefinite"/>
+    </polygon>
+    <text x="200" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">Categorize</text>
+  </g>
+
+  <!-- Category branches with staggered animation -->
+  <g>
+    <line x1="250" y1="70" x2="290" y2="50" stroke="#666" stroke-width="1.5" class="flow-line"/>
+    <line x1="250" y1="78" x2="290" y2="75" stroke="#666" stroke-width="1.5" class="flow-line"/>
+    <line x1="250" y1="92" x2="290" y2="100" stroke="#666" stroke-width="1.5" class="flow-line"/>
+    <line x1="250" y1="100" x2="290" y2="125" stroke="#666" stroke-width="1.5" class="flow-line"/>
+  </g>
+
+  <!-- Categories with staggered fade-in -->
+  <g class="cat1">
+    <rect x="290" y="35" width="80" height="25" rx="4" fill="#e3f2fd" stroke="#1976d2">
+      <animate attributeName="fill" values="#e3f2fd;#bbdefb;#e3f2fd" dur="3s" repeatCount="indefinite"/>
+    </rect>
+    <text x="330" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#1565c0">frontend</text>
+  </g>
+
+  <g class="cat2">
+    <rect x="290" y="65" width="80" height="25" rx="4" fill="#f3e5f5" stroke="#7b1fa2">
+      <animate attributeName="fill" values="#f3e5f5;#e1bee7;#f3e5f5" dur="3s" begin="0.3s" repeatCount="indefinite"/>
+    </rect>
+    <text x="330" y="82" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#6a1b9a">backend</text>
+  </g>
+
+  <g class="cat3">
+    <rect x="290" y="95" width="80" height="25" rx="4" fill="#fff8e1" stroke="#ffa000">
+      <animate attributeName="fill" values="#fff8e1;#ffecb3;#fff8e1" dur="3s" begin="0.6s" repeatCount="indefinite"/>
+    </rect>
+    <text x="330" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ff8f00">config</text>
+  </g>
+
+  <g class="cat4">
+    <rect x="290" y="125" width="80" height="25" rx="4" fill="#e8f5e9" stroke="#388e3c">
+      <animate attributeName="fill" values="#e8f5e9;#c8e6c9;#e8f5e9" dur="3s" begin="0.9s" repeatCount="indefinite"/>
+    </rect>
+    <text x="330" y="142" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#2e7d32">docs</text>
+  </g>
+
+  <!-- Merge lines -->
+  <line x1="370" y1="47" x2="410" y2="85" stroke="#666" stroke-width="1.5" class="flow-line"/>
+  <line x1="370" y1="77" x2="410" y2="85" stroke="#666" stroke-width="1.5" class="flow-line"/>
+  <line x1="370" y1="107" x2="410" y2="85" stroke="#666" stroke-width="1.5" class="flow-line"/>
+  <line x1="370" y1="137" x2="410" y2="85" stroke="#666" stroke-width="1.5" class="flow-line"/>
+
+  <!-- Step 3: Generate Description -->
+  <g class="step3">
+    <rect x="410" y="60" width="110" height="50" rx="8" fill="#e1bee7" stroke="#7b1fa2" stroke-width="2" filter="url(#shadow)"/>
+    <text x="465" y="82" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#6a1b9a">Generate</text>
+    <text x="465" y="97" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">Description</text>
+  </g>
+
+  <line x1="520" y1="85" x2="550" y2="85" stroke="#666" stroke-width="2" class="flow-line" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 4: Version Tag Decision -->
+  <g class="step4">
+    <polygon points="600,55 650,85 600,115 550,85" fill="#fff3e0" stroke="#f57c00" stroke-width="2" filter="url(#shadow)"/>
+    <text x="600" y="82" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#e65100">Version?</text>
+    <text x="600" y="95" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">Tag</text>
+  </g>
+
+  <line x1="650" y1="70" x2="680" y2="50" stroke="#388e3c" stroke-width="1.5" class="flow-line"/>
+  <text x="660" y="55" font-family="Arial, sans-serif" font-size="9" fill="#388e3c">yes</text>
+
+  <line x1="650" y1="100" x2="680" y2="120" stroke="#999" stroke-width="1.5" class="flow-line"/>
+  <text x="660" y="118" font-family="Arial, sans-serif" font-size="9" fill="#999">no</text>
+
+  <rect x="680" y="35" width="70" height="25" rx="4" fill="#c8e6c9" stroke="#388e3c" class="success-box"/>
+  <text x="715" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#2e7d32">v0.0.X</text>
+
+  <rect x="680" y="110" width="70" height="25" rx="4" fill="#eee" stroke="#999"/>
+  <text x="715" y="127" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#666">skip</text>
+
+  <!-- Merge to Issue -->
+  <line x1="750" y1="47" x2="780" y2="85" stroke="#666" stroke-width="1.5" class="flow-line"/>
+  <line x1="750" y1="122" x2="780" y2="85" stroke="#666" stroke-width="1.5" class="flow-line"/>
+
+  <!-- Step 5: Issue Link -->
+  <g class="step5">
+    <polygon points="830,55 880,85 830,115 780,85" fill="#fce4ec" stroke="#c2185b" stroke-width="2" filter="url(#shadow)"/>
+    <text x="830" y="82" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#880e4f">Issue?</text>
+    <text x="830" y="95" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">#N</text>
+  </g>
+
+  <!-- Connection to second row -->
+  <path d="M 830 115 L 830 160 L 350 160 L 350 200" stroke="#666" stroke-width="2" fill="none" class="flow-line" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 6: git commit -->
+  <g class="step6">
+    <rect x="300" y="200" width="100" height="50" rx="8" fill="#c8e6c9" stroke="#388e3c" stroke-width="2" filter="url(#shadow)" class="success-box"/>
+    <text x="350" y="222" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#2e7d32">git commit</text>
+    <text x="350" y="238" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">+ message</text>
+  </g>
+
+  <line x1="400" y1="225" x2="450" y2="225" stroke="#388e3c" stroke-width="2" class="flow-line" marker-end="url(#arrowhead)"/>
+
+  <!-- Step 7: git push -->
+  <g class="step7">
+    <rect x="450" y="200" width="100" height="50" rx="8" fill="#c8e6c9" stroke="#388e3c" stroke-width="2" filter="url(#shadow)">
+      <animate attributeName="stroke-width" values="2;4;2" dur="2s" repeatCount="indefinite"/>
+    </rect>
+    <text x="500" y="222" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#2e7d32">git push</text>
+    <text x="500" y="238" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#666">origin main</text>
+  </g>
+
+  <!-- Output branches -->
+  <line x1="550" y1="210" x2="620" y2="190" stroke="#388e3c" stroke-width="1.5" class="flow-line" marker-end="url(#arrowhead)"/>
+  <line x1="550" y1="240" x2="620" y2="260" stroke="#ffa000" stroke-width="1.5" class="flow-line" marker-end="url(#arrowhead)"/>
+
+  <!-- SQLite output -->
+  <g class="step7">
+    <ellipse cx="700" cy="190" rx="60" ry="25" fill="#e8f5e9" stroke="#388e3c" stroke-width="2" filter="url(#shadow)">
+      <animate attributeName="ry" values="25;28;25" dur="2s" repeatCount="indefinite"/>
+    </ellipse>
+    <text x="700" y="188" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#2e7d32">SQLite</text>
+    <text x="700" y="200" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#666">commits table</text>
+  </g>
+
+  <!-- Backup output -->
+  <g class="step7">
+    <rect x="620" y="245" width="110" height="40" rx="8" fill="#fff8e1" stroke="#ffa000" stroke-width="2" filter="url(#shadow)"/>
+    <text x="675" y="265" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ff8f00">📁 tree backup</text>
+    <text x="675" y="278" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#666">tree_*.txt</text>
+  </g>
+
+  <!-- Step numbers -->
+  <g>
+    <circle cx="70" cy="130" r="12" fill="#1976d2"><animate attributeName="r" values="12;14;12" dur="5s" repeatCount="indefinite"/></circle>
+    <text x="70" y="134" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#fff">1</text>
+  </g>
+
+  <g>
+    <circle cx="200" cy="130" r="12" fill="#f57c00"><animate attributeName="r" values="12;14;12" dur="5s" begin="0.5s" repeatCount="indefinite"/></circle>
+    <text x="200" y="134" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#fff">2</text>
+  </g>
+
+  <g>
+    <circle cx="465" cy="130" r="12" fill="#7b1fa2"><animate attributeName="r" values="12;14;12" dur="5s" begin="1.5s" repeatCount="indefinite"/></circle>
+    <text x="465" y="134" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#fff">3</text>
+  </g>
+
+  <g>
+    <circle cx="600" cy="130" r="12" fill="#f57c00"><animate attributeName="r" values="12;14;12" dur="5s" begin="2s" repeatCount="indefinite"/></circle>
+    <text x="600" y="134" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#fff">4</text>
+  </g>
+
+  <g>
+    <circle cx="830" cy="130" r="12" fill="#c2185b"><animate attributeName="r" values="12;14;12" dur="5s" begin="2.5s" repeatCount="indefinite"/></circle>
+    <text x="830" y="134" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#fff">5</text>
+  </g>
+
+  <g>
+    <circle cx="350" cy="270" r="12" fill="#388e3c"><animate attributeName="r" values="12;14;12" dur="5s" begin="3s" repeatCount="indefinite"/></circle>
+    <text x="350" y="274" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#fff">6</text>
+  </g>
+
+  <g>
+    <circle cx="500" cy="270" r="12" fill="#388e3c"><animate attributeName="r" values="12;14;12" dur="5s" begin="3.5s" repeatCount="indefinite"/></circle>
+    <text x="500" y="274" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#fff">7</text>
+  </g>
+
+  <!-- 5s loop indicator -->
+  <g transform="translate(850, 290)">
+    <circle r="12" fill="none" stroke="#ddd" stroke-width="2"/>
+    <circle r="12" fill="none" stroke="#4caf50" stroke-width="2" stroke-dasharray="75" stroke-dashoffset="75">
+      <animate attributeName="stroke-dashoffset" values="75;0;75" dur="5s" repeatCount="indefinite"/>
+    </circle>
+    <text x="0" y="4" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" fill="#666">5s</text>
+  </g>
+</svg>
