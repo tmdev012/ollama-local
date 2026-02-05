@@ -30,6 +30,7 @@ show_help() {
     echo "  history           Show query history"
     echo "  status            System status"
     echo "  models            List available models"
+    echo "  gmail <cmd>       Gmail access (search/recent/export)"
     echo "  help              Show this help"
     echo ""
     echo "Pipe support:"
@@ -215,6 +216,10 @@ case "${1:-help}" in
         ;;
     models)
         ollama list
+        ;;
+    gmail)
+        shift
+        "$SCRIPT_DIR/mcp/gmail/tools/gmail-cli" "$@"
         ;;
     help|--help|-h)
         show_help
