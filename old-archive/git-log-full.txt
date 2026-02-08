@@ -1,0 +1,107 @@
+=== b55cee5f3399c00c60813d216087d9c612cb6de5 Update history and file tree backup (2026-02-05 19:48:44 +0200) ===
+A	backups/tree_20260205_194603.txt
+M	history.txt
+A	lastseen.md
+
+=== 178aaef7aa9e5758f79cd3978e8ef5a2cc31e6d8 Revert "Update SVG animations with triggered process flow" (2026-02-05 19:43:55 +0200) ===
+M	docs/diagrams/data-flow-animated.svg
+M	docs/diagrams/process-map-animated.svg
+M	docs/diagrams/smart-push-animated.svg
+
+=== 1d3a7895011f24527616f38ba226d4c7378dddac Update SVG animations with triggered process flow (2026-02-05 19:34:12 +0200) ===
+M	docs/diagrams/data-flow-animated.svg
+M	docs/diagrams/process-map-animated.svg
+M	docs/diagrams/smart-push-animated.svg
+
+=== bb61cb1b3d9f335a0258585e85c0c31a51fb7ec4 Add animated SVG diagrams with 5s loop (2026-02-05 19:27:19 +0200) ===
+M	README.md
+A	docs/diagrams/data-flow-animated.svg
+A	docs/diagrams/process-map-animated.svg
+A	docs/diagrams/smart-push-animated.svg
+
+=== 0d139ae31cfcc39c65e200ce52cac9c17f0ece93 Convert Mermaid diagrams to SVG for GitHub compatibility (2026-02-05 19:22:29 +0200) ===
+M	README.md
+A	docs/diagrams/data-flow.svg
+A	docs/diagrams/process-map.svg
+A	docs/diagrams/smart-push.svg
+
+=== 12ab7cd88632eaeabca3c1b87c4369a668cc6c94 Add Mermaid process maps to README (2026-02-05 19:14:41 +0200) ===
+M	README.md
+
+=== 26875d9ad77ea25c7deb68c349eba4a337007813 Update README with Smart Push, commits table, session timeline (2026-02-05 19:12:12 +0200) ===
+M	README.md
+
+=== 0ef3279df856ceb08206049e19969239d2307c46 Add missing MCP module directories for consistency (2026-02-05 19:07:38 +0200) ===
+A	mcp/gmail/prompts/.gitkeep
+A	mcp/voice/prompts/.gitkeep
+A	mcp/voice/resources/.gitkeep
+
+=== bcef94540b7bd847750660acabf8afc504063fb2 timestamped filetree for directory monitoring (2026-02-05 18:58:30 +0200) ===
+A	backups/tree_20260205_185654.txt
+
+=== ced090212754e57b6e09b796f8b455fa6bcae9bf Bash history (2026-02-05 18:55:04 +0200) ===
+A	backups/tree_20260205_185250.txt
+A	history.txt
+
+=== b3a022265a165efed7f9991196d9b0ab372e2524 Documentation updates (2026-02-05 18:46:11 +0200) ===
+A	alist-v0.3.txt
+A	backups/tree_20260205_183618.txt
+
+=== 4c1981bede93b07508eacb5ab752cc3b1c3a6054 filetree update - strucure changes (2026-02-05 18:29:46 +0200) ===
+A	backups/tree_20260205_182754.txt
+
+=== 1904374866efd5d0648182ecaced6d051df95528 created smart alias tp predesign lombock and yaml webhooks (2026-02-05 17:58:20 +0200) ===
+A	backups/tree_20260205_174842.txt
+
+=== 1ff699557abdbd79e4ab284c91145632f656ef27 Add smart-push v2.0 with auto-categorization and version tagging (2026-02-05 17:33:45 +0200) ===
+A	scripts/smart-push.sh
+
+=== d0445aafb25b2d62c06ca11703ed00705fd73da2 Add comprehensive README with MCP, refactoring, schema docs (2026-02-05 17:18:47 +0200) ===
+A	README.md
+
+=== 373647c729ffcf0e4136ef2bbedb673370609d73 Add termux-sync for cross-device backup (2026-02-05 16:46:48 +0200) ===
+M	CHANGELOG.md
+A	scripts/termux-sync.sh
+
+=== b619c56992c1e0059e47fde1e178e0a100f5e965 v2.0.0: SASHI optimization, voice module, Git/SSH setup (2026-02-05 16:33:42 +0200) ===
+A	CHANGELOG.md
+A	Dockerfile
+A	docker-compose.yml
+A	install.sh
+A	mcp/gmail/config/service-account.json
+A	mcp/gmail/tools/auto-gcp-setup.sh
+A	mcp/gmail/tools/browser-oauth-setup.py
+A	mcp/gmail/tools/click-helper.py
+A	mcp/gmail/tools/gcp-setup
+A	mcp/gmail/tools/service-account-setup.sh
+A	mcp/voice/config/model.json
+A	mcp/voice/tools/install-voice
+A	mcp/voice/tools/voice-gui
+A	mcp/voice/tools/voice-input
+M	sashi
+A	scripts/git-aliases.sh
+A	scripts/git-setup.sh
+
+=== b57005fc8583f101783d9632527c6b3d60d310be Add Gmail module for email context access (2026-02-05 08:19:52 +0100) ===
+A	mcp/gmail/config/setup.md
+A	mcp/gmail/tools/gmail-cli
+A	mcp/gmail/tools/gmail-setup
+M	sashi
+
+=== faaef585ba07276846d8a97e17e0af210561fe0a Clean: MCP structure with sashi CLI (2026-02-05 08:07:59 +0100) ===
+A	.gitignore
+A	mcp/claude/config/model.json
+A	mcp/claude/resources/matt-pocock-workflow.md
+A	mcp/deepseek/config/model.json
+A	mcp/deepseek/tools/ask
+A	mcp/deepseek/tools/chat
+A	mcp/deepseek/tools/deepseek-check.sh
+A	mcp/deepseek/tools/deepseek-cli
+A	mcp/deepseek/tools/deepseek.sh
+A	mcp/llama/config/model.json
+A	mcp/llama/tools/ai-code
+A	mcp/llama/tools/ai-fast
+A	mcp/llama/tools/ai-general
+A	mcp/llama/tools/ai-orchestrator
+A	mcp/llama/tools/ollama-chat.sh
+A	sashi

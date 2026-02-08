@@ -1,0 +1,62 @@
+{
+  "generated": "2026-02-08T16:30:05.169476",
+  "cmmi_level": 4,
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Enforce .gitignore across all repos",
+      "status": "done",
+      "cmmi": "L4-measurement",
+      "tool": "file_guard"
+    },
+    {
+      "id": 2,
+      "title": "Install env-guard pre-commit hook",
+      "status": "done",
+      "cmmi": "L4-process-control",
+      "tool": "env-guard.sh"
+    },
+    {
+      "id": 3,
+      "title": "Sync claude sessions to SQLite",
+      "status": "done",
+      "cmmi": "L4-quantitative",
+      "tool": "bridge-sync"
+    },
+    {
+      "id": 4,
+      "title": "Prompt cache for llama3.2 0ms repeats",
+      "status": "done",
+      "cmmi": "L4-performance",
+      "tool": "prompt_cache"
+    },
+    {
+      "id": 5,
+      "title": "Consolidate aliases to sourced dir",
+      "status": "done",
+      "cmmi": "L3-defined",
+      "tool": "aliases/loader.sh"
+    },
+    {
+      "id": 6,
+      "title": "Remove deepseek, zero cloud costs",
+      "status": "done",
+      "cmmi": "L4-cost-control",
+      "tool": "sashi v3.0"
+    },
+    {
+      "id": 7,
+      "title": "Symlink db/mcp/aliases across repos",
+      "status": "done",
+      "cmmi": "L4-standardization",
+      "tool": "symlinks"
+    },
+    {
+      "id": 8,
+      "title": "Credential lombok auto-resolution",
+      "status": "done",
+      "cmmi": "L4-audit",
+      "tool": "cred-status"
+    }
+  ]
+}

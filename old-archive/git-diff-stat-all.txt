@@ -1,0 +1,128 @@
+--- b55cee5 Update history and file tree backup ---
+ backups/tree_20260205_194603.txt | 137 +++++++++++++++++++++++++++++++++++++++
+ history.txt                      |  23 +++++--
+ lastseen.md                      |  11 ++++
+ 3 files changed, 165 insertions(+), 6 deletions(-)
+
+--- 178aaef Revert "Update SVG animations with triggered process flow" ---
+ docs/diagrams/data-flow-animated.svg   | 340 +++++++++++++++------------------
+ docs/diagrams/process-map-animated.svg | 337 +++++++++++++++-----------------
+ docs/diagrams/smart-push-animated.svg  | 325 ++++++++++++++-----------------
+ 3 files changed, 457 insertions(+), 545 deletions(-)
+
+--- 1d3a789 Update SVG animations with triggered process flow ---
+ docs/diagrams/data-flow-animated.svg   | 340 ++++++++++++++++++---------------
+ docs/diagrams/process-map-animated.svg | 337 +++++++++++++++++---------------
+ docs/diagrams/smart-push-animated.svg  | 325 +++++++++++++++++--------------
+ 3 files changed, 545 insertions(+), 457 deletions(-)
+
+--- bb61cb1 Add animated SVG diagrams with 5s loop ---
+ README.md                              |   6 +-
+ docs/diagrams/data-flow-animated.svg   | 192 ++++++++++++++++++++++++++
+ docs/diagrams/process-map-animated.svg | 217 +++++++++++++++++++++++++++++
+ docs/diagrams/smart-push-animated.svg  | 240 +++++++++++++++++++++++++++++++++
+ 4 files changed, 652 insertions(+), 3 deletions(-)
+
+--- 0d139ae Convert Mermaid diagrams to SVG for GitHub compatibility ---
+ README.md                     | 114 +----------------------------------
+ docs/diagrams/data-flow.svg   | 107 +++++++++++++++++++++++++++++++++
+ docs/diagrams/process-map.svg | 115 +++++++++++++++++++++++++++++++++++
+ docs/diagrams/smart-push.svg  | 135 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 360 insertions(+), 111 deletions(-)
+
+--- 12ab7cd Add Mermaid process maps to README ---
+ README.md | 120 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 120 insertions(+)
+
+--- 26875d9 Update README with Smart Push, commits table, session timeline ---
+ README.md | 153 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 151 insertions(+), 2 deletions(-)
+
+--- 0ef3279 Add missing MCP module directories for consistency ---
+ mcp/gmail/prompts/.gitkeep   | 0
+ mcp/voice/prompts/.gitkeep   | 0
+ mcp/voice/resources/.gitkeep | 0
+ 3 files changed, 0 insertions(+), 0 deletions(-)
+
+--- bcef945 timestamped filetree for directory monitoring ---
+ backups/tree_20260205_185654.txt | 128 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 128 insertions(+)
+
+--- ced0902 Bash history ---
+ backups/tree_20260205_185250.txt | 128 ++++++++++++++
+ history.txt                      | 350 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 478 insertions(+)
+
+--- b3a0222 Documentation updates ---
+ alist-v0.3.txt                   | 270 +++++++++++++++++++++++++++++++++++++++
+ backups/tree_20260205_183618.txt | 126 ++++++++++++++++++
+ 2 files changed, 396 insertions(+)
+
+--- 4c1981b filetree update - strucure changes ---
+ backups/tree_20260205_182754.txt | 125 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 125 insertions(+)
+
+--- 1904374 created smart alias tp predesign lombock and yaml webhooks ---
+ backups/tree_20260205_174842.txt | 122 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 122 insertions(+)
+
+--- 1ff6995 Add smart-push v2.0 with auto-categorization and version tagging ---
+ scripts/smart-push.sh | 424 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 424 insertions(+)
+
+--- d0445aa Add comprehensive README with MCP, refactoring, schema docs ---
+ README.md | 500 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 500 insertions(+)
+
+--- 373647c Add termux-sync for cross-device backup ---
+ CHANGELOG.md           | 101 ++++++++++++++++++++++++++++-
+ scripts/termux-sync.sh | 168 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 266 insertions(+), 3 deletions(-)
+
+--- b619c56 v2.0.0: SASHI optimization, voice module, Git/SSH setup ---
+ CHANGELOG.md                             | 164 ++++++++++++++++++++++
+ Dockerfile                               |  84 ++++++++++++
+ docker-compose.yml                       |  33 +++++
+ install.sh                               | 205 +++++++++++++++++++++++++++
+ mcp/gmail/config/service-account.json    |   0
+ mcp/gmail/tools/auto-gcp-setup.sh        | 100 ++++++++++++++
+ mcp/gmail/tools/browser-oauth-setup.py   | 213 ++++++++++++++++++++++++++++
+ mcp/gmail/tools/click-helper.py          |  70 ++++++++++
+ mcp/gmail/tools/gcp-setup                |  50 +++++++
+ mcp/gmail/tools/service-account-setup.sh |  43 ++++++
+ mcp/voice/config/model.json              |  22 +++
+ mcp/voice/tools/install-voice            |  25 ++++
+ mcp/voice/tools/voice-gui                | 209 ++++++++++++++++++++++++++++
+ mcp/voice/tools/voice-input              | 146 ++++++++++++++++++++
+ sashi                                    | 229 ++++++++++++++++++++++---------
+ scripts/git-aliases.sh                   | 109 +++++++++++++++
+ scripts/git-setup.sh                     | 133 ++++++++++++++++++
+ 17 files changed, 1767 insertions(+), 68 deletions(-)
+
+--- b57005f Add Gmail module for email context access ---
+ mcp/gmail/config/setup.md   |  33 ++++++++++
+ mcp/gmail/tools/gmail-cli   | 150 ++++++++++++++++++++++++++++++++++++++++++++
+ mcp/gmail/tools/gmail-setup |  62 ++++++++++++++++++
+ sashi                       |   5 ++
+ 4 files changed, 250 insertions(+)
+
+--- faaef58 Clean: MCP structure with sashi CLI ---
+ .gitignore                                   |  16 ++
+ mcp/claude/config/model.json                 |  32 ++++
+ mcp/claude/resources/matt-pocock-workflow.md |  56 +++++++
+ mcp/deepseek/config/model.json               |  25 +++
+ mcp/deepseek/tools/ask                       |  29 ++++
+ mcp/deepseek/tools/chat                      |  35 ++++
+ mcp/deepseek/tools/deepseek-check.sh         |  44 ++++++
+ mcp/deepseek/tools/deepseek-cli              |  81 ++++++++++
+ mcp/deepseek/tools/deepseek.sh               | 151 ++++++++++++++++++
+ mcp/llama/config/model.json                  |  24 +++
+ mcp/llama/tools/ai-code                      |  22 +++
+ mcp/llama/tools/ai-fast                      |  17 ++
+ mcp/llama/tools/ai-general                   |  20 +++
+ mcp/llama/tools/ai-orchestrator              | 148 +++++++++++++++++
+ mcp/llama/tools/ollama-chat.sh               |  53 +++++++
+ sashi                                        | 228 +++++++++++++++++++++++++++
+ 16 files changed, 981 insertions(+)
+=== FILES EVER COMMITTED ===
+57
