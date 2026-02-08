@@ -1,0 +1,351 @@
+# If you come from bash you might have to change your $PATH.
+# export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
+
+# Path to your Oh My Zsh installation.
+export ZSH="$HOME/.oh-my-zsh"
+
+# Set name of the theme to load --- if set to "random", it will
+# load a random theme each time Oh My Zsh is loaded, in which case,
+# to know which specific one was loaded, run: echo $RANDOM_THEME
+# See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
+ZSH_THEME="robbyrussell"
+
+# Set list of themes to pick from when loading at random
+# Setting this variable when ZSH_THEME=random will cause zsh to load
+# a theme from this variable instead of looking in $ZSH/themes/
+# If set to an empty array, this variable will have no effect.
+# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
+
+# Uncomment the following line to use case-sensitive completion.
+# CASE_SENSITIVE="true"
+
+# Uncomment the following line to use hyphen-insensitive completion.
+# Case-sensitive completion must be off. _ and - will be interchangeable.
+# HYPHEN_INSENSITIVE="true"
+
+# Uncomment one of the following lines to change the auto-update behavior
+# zstyle ':omz:update' mode disabled  # disable automatic updates
+# zstyle ':omz:update' mode auto      # update automatically without asking
+# zstyle ':omz:update' mode reminder  # just remind me to update when it's time
+
+# Uncomment the following line to change how often to auto-update (in days).
+# zstyle ':omz:update' frequency 13
+
+# Uncomment the following line if pasting URLs and other text is messed up.
+# DISABLE_MAGIC_FUNCTIONS="true"
+
+# Uncomment the following line to disable colors in ls.
+# DISABLE_LS_COLORS="true"
+
+# Uncomment the following line to disable auto-setting terminal title.
+# DISABLE_AUTO_TITLE="true"
+
+# Uncomment the following line to enable command auto-correction.
+# ENABLE_CORRECTION="true"
+
+# Uncomment the following line to display red dots whilst waiting for completion.
+# You can also set it to another string to have that shown instead of the default red dots.
+# e.g. COMPLETION_WAITING_DOTS="%F{yellow}waiting...%f"
+# Caution: this setting can cause issues with multiline prompts in zsh < 5.7.1 (see #5765)
+# COMPLETION_WAITING_DOTS="true"
+
+# Uncomment the following line if you want to disable marking untracked files
+# under VCS as dirty. This makes repository status check for large repositories
+# much, much faster.
+# DISABLE_UNTRACKED_FILES_DIRTY="true"
+
+# Uncomment the following line if you want to change the command execution time
+# stamp shown in the history command output.
+# You can set one of the optional three formats:
+# "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
+# or set a custom format using the strftime function format specifications,
+# see 'man strftime' for details.
+# HIST_STAMPS="mm/dd/yyyy"
+
+# Would you like to use another custom folder than $ZSH/custom?
+# ZSH_CUSTOM=/path/to/new-custom-folder
+
+# Which plugins would you like to load?
+# Standard plugins can be found in $ZSH/plugins/
+# Custom plugins may be added to $ZSH_CUSTOM/plugins/
+# Example format: plugins=(rails git textmate ruby lighthouse)
+# Add wisely, as too many plugins slow down shell startup.
+plugins=(git)
+
+source $ZSH/oh-my-zsh.sh
+
+# User configuration
+
+# export MANPATH="/usr/local/man:$MANPATH"
+
+# You may need to manually set your language environment
+# export LANG=en_US.UTF-8
+
+# Preferred editor for local and remote sessions
+# if [[ -n $SSH_CONNECTION ]]; then
+#   export EDITOR='vim'
+# else
+#   export EDITOR='nvim'
+# fi
+
+# Compilation flags
+# export ARCHFLAGS="-arch $(uname -m)"
+
+# Set personal aliases, overriding those provided by Oh My Zsh libs,
+# plugins, and themes. Aliases can be placed here, though Oh My Zsh
+# users are encouraged to define aliases within a top-level file in
+# the $ZSH_CUSTOM folder, with .zsh extension. Examples:
+# - $ZSH_CUSTOM/aliases.zsh
+# - $ZSH_CUSTOM/macos.zsh
+# For a full list of active aliases, run `alias`.
+#
+# Example aliases
+# alias zshconfig="mate ~/.zshrc"
+# alias ohmyzsh="mate ~/.oh-my-zsh"
+
+# ============================================
+# PATH Configuration
+# ============================================
+export PATH="$HOME/bin:$HOME/.local/bin:$HOME/ollama-local:$PATH"
+
+# ============================================
+# MCP AI SYSTEM (Consolidated)
+# ============================================
+
+# --- SASHI Primary Interface ---
+alias s='~/ollama-local/sashi'
+alias sask='~/ollama-local/sashi ask'
+alias scode='~/ollama-local/sashi code'
+alias slocal='~/ollama-local/sashi local'
+alias schat='~/ollama-local/sashi chat'
+alias sstatus='~/ollama-local/sashi status'
+alias shistory='~/ollama-local/sashi history'
+alias smodels='~/ollama-local/sashi models'
+alias sgmail='~/ollama-local/sashi gmail'
+
+# --- Ollama Service ---
+alias ollama-up='sudo systemctl start ollama'
+alias ollama-down='sudo systemctl stop ollama'
+alias ollama-restart='sudo systemctl restart ollama'
+alias ollama-logs='sudo journalctl -u ollama -f -n 50'
+alias ollama-status='systemctl is-active ollama && ollama list'
+
+# --- Pipe Support ---
+aipipe() { ~/ollama-local/sashi code "$1 $(cat -)"; }
+alias analyze='aipipe "Analyze:"'
+alias summarize='aipipe "Summarize:"'
+alias explain='aipipe "Explain:"'
+alias review='aipipe "Code review:"'
+
+# --- Quick Access ---
+alias ai='~/ollama-local/sashi'
+alias aihelp='~/ollama-local/sashi help'
+
+# --- Legacy Compatibility ---
+alias aichat='~/ollama-local/sashi chat'
+alias aicode='~/ollama-local/sashi code'
+alias aigen='~/ollama-local/sashi ask'
+alias aifast='~/ollama-local/sashi ask'
+alias aistatus='~/ollama-local/sashi status'
+alias aimodels='~/ollama-local/sashi models'
+
+# --- Help Function ---
+mcp-help() {
+    echo "MCP AI Commands:"
+    echo ""
+    echo "  SASHI (recommended):"
+    echo "    s 'question'      Ask AI (auto-routes)"
+    echo "    sask 'question'   Quick question (DeepSeek)"
+    echo "    scode 'task'      Code help (DeepSeek)"
+    echo "    slocal 'question' Offline (Llama)"
+    echo "    schat             Interactive chat"
+    echo "    sgmail search     Email context"
+    echo "    sstatus           System status"
+    echo ""
+    echo "  Pipe support:"
+    echo "    cat file.py | analyze"
+    echo "    git diff | review"
+    echo ""
+    echo "  Ollama:"
+    echo "    ollama-up         Start service"
+    echo "    ollama-down       Stop service"
+    echo "    ollama-status     Check status"
+}
+
+# ============================================
+# GIT ALIASES & PIPELINE
+# ============================================
+
+# Quick status
+alias gs="git status -sb"
+alias gd="git diff"
+alias gds="git diff --staged"
+alias gl="git log --oneline -20"
+alias gla="git log --oneline --all --graph -20"
+
+# Staging
+alias ga="git add"
+alias gaa="git add -A"
+alias gap="git add -p"
+
+# Commit
+alias gc="git commit -m"
+alias gca="git commit --amend"
+alias gcn="git commit --amend --no-edit"
+
+# Push/Pull
+alias gp="git push"
+alias gpf="git push --force-with-lease"
+alias gpl="git pull"
+alias gplo="git pull origin"
+
+# Branches
+alias gb="git branch"
+alias gba="git branch -a"
+alias gco="git checkout"
+alias gcb="git checkout -b"
+alias gm="git merge"
+
+# Remote
+alias gr="git remote -v"
+alias gra="git remote add"
+alias gf="git fetch --all"
+
+# Stash
+alias gst="git stash"
+alias gstp="git stash pop"
+alias gstl="git stash list"
+
+# ============================================
+# GITPUSH - One command add+commit+push
+# ============================================
+gitpush() {
+    local msg="${1:-Auto-commit $(date +%Y-%m-%d\ %H:%M)}"
+
+    echo "📦 Staging all changes..."
+    git add -A
+
+    echo "📝 Committing: $msg"
+    git commit -m "$msg
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+
+    echo "🚀 Pushing to origin..."
+    git push
+
+    echo "✅ Done!"
+}
+
+# Alias for gitpush
+alias gpp="gitpush"
+alias ship="gitpush"
+
+# Interactive gitpush
+gitship() {
+    echo "📋 Current status:"
+    git status -sb
+    echo ""
+    read -p "Commit message: " msg
+    gitpush "$msg"
+}
+alias gship="gitship"
+
+alias termux-sync="~/ollama-local/scripts/termux-sync.sh"
+
+# ============================================
+# SMART PUSH - Comprehensive Git Push
+# ============================================
+alias smartpush='~/ollama-local/scripts/smart-push.sh'
+alias sp='smartpush'
+alias gpush='smartpush'
+
+# Quick commit history from SQLite
+git-history() {
+    python3 << 'PYEOF'
+import sqlite3
+import os
+db = os.path.expanduser('~/ollama-local/db/history.db')
+conn = sqlite3.connect(db)
+c = conn.cursor()
+c.execute('SELECT hash, message, branch, files_changed, timestamp FROM commits ORDER BY id DESC LIMIT 20')
+rows = c.fetchall()
+if rows:
+    print(f"{'Hash':<10} {'Message':<40} {'Branch':<10} {'Files':<6} {'Time'}")
+    print("-" * 85)
+    for r in rows:
+        msg = (r[1] or '')[:38]
+        print(f"{r[0]:<10} {msg:<40} {r[2]:<10} {r[3] or 0:<6} {r[4]}")
+else:
+    print("No commits tracked yet. Use: smartpush")
+PYEOF
+}
+alias ghist='git-history'
+
+# ============================================
+# SMART PUSH v2.0 - Updated aliases
+# ============================================
+# View commit history with categories
+git-history() {
+    python3 << 'PYEOF'
+import sqlite3
+import os
+db = os.path.expanduser('~/ollama-local/db/history.db')
+conn = sqlite3.connect(db)
+c = conn.cursor()
+try:
+    c.execute('''SELECT hash, message, version_tag, issue_number, branch, 
+                        files_changed, lines_added, lines_deleted, categories, timestamp 
+                 FROM commits ORDER BY id DESC LIMIT 15''')
+    rows = c.fetchall()
+    if rows:
+        print(f"{'Hash':<9} {'Ver':<8} {'Issue':<6} {'Cat':<12} {'+/-':<10} {'Message':<35}")
+        print("─" * 90)
+        for r in rows:
+            ver = r[2] or "-"
+            issue = f"#{r[3]}" if r[3] else "-"
+            cat = (r[8] or "other")[:10]
+            changes = f"+{r[6] or 0}/-{r[7] or 0}"
+            msg = (r[1] or '')[:33]
+            print(f"{r[0]:<9} {ver:<8} {issue:<6} {cat:<12} {changes:<10} {msg}")
+    else:
+        print("No commits tracked. Use: smartpush")
+except:
+    print("Run smartpush first to initialize tracking")
+PYEOF
+}
+
+# View by issue
+git-issue() {
+    local issue="$1"
+    [ -z "$issue" ] && { echo "Usage: git-issue <number>"; return 1; }
+    python3 << PYEOF
+import sqlite3, os
+conn = sqlite3.connect(os.path.expanduser('~/ollama-local/db/history.db'))
+c = conn.cursor()
+c.execute("SELECT hash, message, version_tag, timestamp FROM commits WHERE issue_number=? ORDER BY id DESC", ('$issue',))
+rows = c.fetchall()
+print(f"Commits for issue #$issue:")
+print("─" * 60)
+for r in rows:
+    print(f"  {r[0]} | {r[2] or '-':<8} | {r[1][:40]}")
+    print(f"           {r[3]}")
+PYEOF
+}
+
+# View by version
+git-version() {
+    python3 << 'PYEOF'
+import sqlite3, os
+conn = sqlite3.connect(os.path.expanduser('~/ollama-local/db/history.db'))
+c = conn.cursor()
+c.execute("SELECT DISTINCT version_tag, hash, message, timestamp FROM commits WHERE version_tag IS NOT NULL ORDER BY id DESC LIMIT 10")
+rows = c.fetchall()
+print("Version Tags:")
+print("─" * 60)
+for r in rows:
+    print(f"  {r[0]:<10} {r[1]} | {r[2][:35]}")
+PYEOF
+}
+
+alias gver='git-version'
+alias gissue='git-issue'

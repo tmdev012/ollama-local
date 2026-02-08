@@ -1,0 +1,367 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# for examples
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# don't put duplicate lines or lines starting with space in the history.
+# See bash(1) for more options
+HISTCONTROL=ignoreboth
+
+# append to the history file, don't overwrite it
+shopt -s histappend
+
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+HISTSIZE=1000
+HISTFILESIZE=2000
+
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+
+# If set, the pattern "**" used in a pathname expansion context will
+# match all files and zero or more directories and subdirectories.
+#shopt -s globstar
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# set a fancy prompt (non-color, unless we know we "want" color)
+case "$TERM" in
+    xterm-color|*-256color) color_prompt=yes;;
+esac
+
+# uncomment for a colored prompt, if the terminal has the capability; turned
+# off by default to not distract the user: the focus in a terminal window
+# should be on the output of commands, not on the prompt
+#force_color_prompt=yes
+
+if [ -n "$force_color_prompt" ]; then
+    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+	# We have color support; assume it's compliant with Ecma-48
+	# (ISO/IEC-6429). (Lack of such support is extremely rare, and such
+	# a case would tend to support setf rather than setaf.)
+	color_prompt=yes
+    else
+	color_prompt=
+    fi
+fi
+
+if [ "$color_prompt" = yes ]; then
+    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+else
+    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+fi
+unset color_prompt force_color_prompt
+
+# If this is an xterm set the title to user@host:dir
+case "$TERM" in
+xterm*|rxvt*)
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    ;;
+*)
+    ;;
+esac
+
+# enable color support of ls and also add handy aliases
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto'
+    #alias dir='dir --color=auto'
+    #alias vdir='vdir --color=auto'
+
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+
+# colored GCC warnings and errors
+#export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+# some more ls aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# Add an "alert" alias for long running commands.  Use like so:
+#   sleep 10; alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+# enable programmable completion features (you don't need to enable
+# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
+# sources /etc/bash.bashrc).
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+# ============================================
+# PATH Configuration
+# ============================================
+export PATH="$HOME/bin:$HOME/.local/bin:$HOME/ollama-local:$PATH"
+
+# ============================================
+# MCP AI SYSTEM (Consolidated)
+# ============================================
+
+# --- SASHI Primary Interface ---
+alias s='~/ollama-local/sashi'
+alias sask='~/ollama-local/sashi ask'
+alias scode='~/ollama-local/sashi code'
+alias slocal='~/ollama-local/sashi local'
+alias schat='~/ollama-local/sashi chat'
+alias sstatus='~/ollama-local/sashi status'
+alias shistory='~/ollama-local/sashi history'
+alias smodels='~/ollama-local/sashi models'
+alias sgmail='~/ollama-local/sashi gmail'
+
+# --- Ollama Service ---
+alias ollama-up='sudo systemctl start ollama'
+alias ollama-down='sudo systemctl stop ollama'
+alias ollama-restart='sudo systemctl restart ollama'
+alias ollama-logs='sudo journalctl -u ollama -f -n 50'
+alias ollama-status='systemctl is-active ollama && ollama list'
+
+# --- Pipe Support ---
+aipipe() { ~/ollama-local/sashi code "$1 $(cat -)"; }
+alias analyze='aipipe "Analyze:"'
+alias summarize='aipipe "Summarize:"'
+alias explain='aipipe "Explain:"'
+alias review='aipipe "Code review:"'
+
+# --- Quick Access ---
+alias ai='~/ollama-local/sashi'
+alias aihelp='~/ollama-local/sashi help'
+
+# --- Legacy Compatibility ---
+alias aichat='~/ollama-local/sashi chat'
+alias aicode='~/ollama-local/sashi code'
+alias aigen='~/ollama-local/sashi ask'
+alias aifast='~/ollama-local/sashi ask'
+alias aistatus='~/ollama-local/sashi status'
+alias aimodels='~/ollama-local/sashi models'
+
+# --- Help Function ---
+mcp-help() {
+    echo "MCP AI Commands:"
+    echo ""
+    echo "  SASHI (recommended):"
+    echo "    s 'question'      Ask AI (auto-routes)"
+    echo "    sask 'question'   Quick question (DeepSeek)"
+    echo "    scode 'task'      Code help (DeepSeek)"
+    echo "    slocal 'question' Offline (Llama)"
+    echo "    schat             Interactive chat"
+    echo "    sgmail search     Email context"
+    echo "    sstatus           System status"
+    echo ""
+    echo "  Pipe support:"
+    echo "    cat file.py | analyze"
+    echo "    git diff | review"
+    echo ""
+    echo "  Ollama:"
+    echo "    ollama-up         Start service"
+    echo "    ollama-down       Stop service"
+    echo "    ollama-status     Check status"
+}
+
+# Starship prompt
+eval "$(starship init bash)"
+
+# ============================================
+# GIT ALIASES & PIPELINE
+# ============================================
+
+# Quick status
+alias gs="git status -sb"
+alias gd="git diff"
+alias gds="git diff --staged"
+alias gl="git log --oneline -20"
+alias gla="git log --oneline --all --graph -20"
+
+# Staging
+alias ga="git add"
+alias gaa="git add -A"
+alias gap="git add -p"
+
+# Commit
+alias gc="git commit -m"
+alias gca="git commit --amend"
+alias gcn="git commit --amend --no-edit"
+
+# Push/Pull
+alias gp="git push"
+alias gpf="git push --force-with-lease"
+alias gpl="git pull"
+alias gplo="git pull origin"
+
+# Branches
+alias gb="git branch"
+alias gba="git branch -a"
+alias gco="git checkout"
+alias gcb="git checkout -b"
+alias gm="git merge"
+
+# Remote
+alias gr="git remote -v"
+alias gra="git remote add"
+alias gf="git fetch --all"
+
+# Stash
+alias gst="git stash"
+alias gstp="git stash pop"
+alias gstl="git stash list"
+
+# ============================================
+# GITPUSH - One command add+commit+push
+# ============================================
+gitpush() {
+    local msg="${1:-Auto-commit $(date +%Y-%m-%d\ %H:%M)}"
+
+    echo "📦 Staging all changes..."
+    git add -A
+
+    echo "📝 Committing: $msg"
+    git commit -m "$msg
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+
+    echo "🚀 Pushing to origin..."
+    git push
+
+    echo "✅ Done!"
+}
+
+# Alias for gitpush
+alias gpp="gitpush"
+alias ship="gitpush"
+
+# Interactive gitpush
+gitship() {
+    echo "📋 Current status:"
+    git status -sb
+    echo ""
+    read -p "Commit message: " msg
+    gitpush "$msg"
+}
+alias gship="gitship"
+
+alias termux-sync="~/ollama-local/scripts/termux-sync.sh"
+
+# ============================================
+# SMART PUSH - Comprehensive Git Push
+# ============================================
+alias smartpush='~/ollama-local/scripts/smart-push.sh'
+alias sp='smartpush'
+alias gpush='smartpush'
+
+# Quick commit history from SQLite
+git-history() {
+    python3 << 'PYEOF'
+import sqlite3
+import os
+db = os.path.expanduser('~/ollama-local/db/history.db')
+conn = sqlite3.connect(db)
+c = conn.cursor()
+c.execute('SELECT hash, message, branch, files_changed, timestamp FROM commits ORDER BY id DESC LIMIT 20')
+rows = c.fetchall()
+if rows:
+    print(f"{'Hash':<10} {'Message':<40} {'Branch':<10} {'Files':<6} {'Time'}")
+    print("-" * 85)
+    for r in rows:
+        msg = (r[1] or '')[:38]
+        print(f"{r[0]:<10} {msg:<40} {r[2]:<10} {r[3] or 0:<6} {r[4]}")
+else:
+    print("No commits tracked yet. Use: smartpush")
+PYEOF
+}
+alias ghist='git-history'
+
+# ============================================
+# SMART PUSH v2.0 - Updated aliases
+# ============================================
+# View commit history with categories
+git-history() {
+    python3 << 'PYEOF'
+import sqlite3
+import os
+db = os.path.expanduser('~/ollama-local/db/history.db')
+conn = sqlite3.connect(db)
+c = conn.cursor()
+try:
+    c.execute('''SELECT hash, message, version_tag, issue_number, branch, 
+                        files_changed, lines_added, lines_deleted, categories, timestamp 
+                 FROM commits ORDER BY id DESC LIMIT 15''')
+    rows = c.fetchall()
+    if rows:
+        print(f"{'Hash':<9} {'Ver':<8} {'Issue':<6} {'Cat':<12} {'+/-':<10} {'Message':<35}")
+        print("─" * 90)
+        for r in rows:
+            ver = r[2] or "-"
+            issue = f"#{r[3]}" if r[3] else "-"
+            cat = (r[8] or "other")[:10]
+            changes = f"+{r[6] or 0}/-{r[7] or 0}"
+            msg = (r[1] or '')[:33]
+            print(f"{r[0]:<9} {ver:<8} {issue:<6} {cat:<12} {changes:<10} {msg}")
+    else:
+        print("No commits tracked. Use: smartpush")
+except:
+    print("Run smartpush first to initialize tracking")
+PYEOF
+}
+
+# View by issue
+git-issue() {
+    local issue="$1"
+    [ -z "$issue" ] && { echo "Usage: git-issue <number>"; return 1; }
+    python3 << PYEOF
+import sqlite3, os
+conn = sqlite3.connect(os.path.expanduser('~/ollama-local/db/history.db'))
+c = conn.cursor()
+c.execute("SELECT hash, message, version_tag, timestamp FROM commits WHERE issue_number=? ORDER BY id DESC", ('$issue',))
+rows = c.fetchall()
+print(f"Commits for issue #$issue:")
+print("─" * 60)
+for r in rows:
+    print(f"  {r[0]} | {r[2] or '-':<8} | {r[1][:40]}")
+    print(f"           {r[3]}")
+PYEOF
+}
+
+# View by version
+git-version() {
+    python3 << 'PYEOF'
+import sqlite3, os
+conn = sqlite3.connect(os.path.expanduser('~/ollama-local/db/history.db'))
+c = conn.cursor()
+c.execute("SELECT DISTINCT version_tag, hash, message, timestamp FROM commits WHERE version_tag IS NOT NULL ORDER BY id DESC LIMIT 10")
+rows = c.fetchall()
+print("Version Tags:")
+print("─" * 60)
+for r in rows:
+    print(f"  {r[0]:<10} {r[1]} | {r[2][:35]}")
+PYEOF
+}
+
+alias gver='git-version'
+alias gissue='git-issue'
