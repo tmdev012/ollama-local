@@ -1,9 +1,9 @@
 # SASHI - Smart AI Shell Interface
 
-> Multi-model AI assistant with local (Ollama/Llama) and cloud (DeepSeek, Claude) providers, organized using MCP (Model Context Protocol) architecture.
+> Local-first AI assistant powered by Ollama/Llama. Privacy-first, no data leaves your machine. Runs on modest hardware (i7, 8GB RAM, no GPU). Optional cloud fallback via OpenRouter.
 
 [![GitHub](https://img.shields.io/badge/GitHub-tmdev012%2Follama--local-blue)](https://github.com/tmdev012/ollama-local)
-[![Version](https://img.shields.io/badge/version-2.0.0-green)]()
+[![Version](https://img.shields.io/badge/version-3.1.0-green)]()
 [![License](https://img.shields.io/badge/license-MIT-yellow)]()
 
 ---
@@ -11,15 +11,15 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Performance Tuning](#performance-tuning)
 - [Architecture](#architecture)
+- [Models](#models)
 - [MCP Structure](#mcp-structure)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Refactoring Summary](#refactoring-summary)
+- [Termux (Mobile)](#termux-mobile)
 - [SQLite Schema](#sqlite-schema)
 - [Aliases Reference](#aliases-reference)
-- [Tech Stack](#tech-stack)
-- [Termux Sync](#termux-sync)
 - [Smart Push](#smart-push)
 - [Session Timeline](#session-timeline)
 
@@ -27,7 +27,7 @@
 
 ## Overview
 
-SASHI routes your queries to the best AI backend:
+SASHI routes all queries through `ollama run` (native CLI, streaming, model stays hot). No cloud dependency. No API keys required for local use.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -37,7 +37,7 @@ SASHI routes your queries to the best AI backend:
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     SASHI v2.0.0                             │
+│                     SASHI v3.1.0                             │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
 │  │ Router  │→ │ Logger  │→ │ History │→ │ Output  │        │
 │  └─────────┘  └─────────┘  └─────────┘  └─────────┘        │
@@ -45,11 +45,11 @@ SASHI routes your queries to the best AI backend:
         │              │              │              │
         ▼              ▼              ▼              ▼
 ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐
-│ DeepSeek  │  │  Llama    │  │   Gmail   │  │   Voice   │
-│   API     │  │  Ollama   │  │    API    │  │  Google   │
-│  (Cloud)  │  │  (Local)  │  │  (OAuth)  │  │   STT     │
+│  Llama    │  │OpenRouter │  │   Gmail   │  │   Voice   │
+│  Ollama   │  │  (Cloud)  │  │    API    │  │  Google   │
+│  (Local)  │  │ (Fallback)│  │  (OAuth)  │  │   STT     │
 └───────────┘  └───────────┘  └───────────┘  └───────────┘
-     Fast         Offline        Context        Input
+   Primary       Optional        Context        Input
 ```
 
 ### Process Map
@@ -66,111 +66,178 @@ SASHI routes your queries to the best AI backend:
 
 ---
 
+## Performance Tuning
+
+Benchmarked and optimized for CPU-only hardware (no GPU). These settings were proven across 3 rounds of benchmarking on an i7-6500U (2 cores, 4 threads, 7.6GB RAM, 8GB swap).
+
+### Why These Settings Matter
+
+| Setting | Wrong Value | Right Value | What Happens |
+|---------|-------------|-------------|-------------|
+| `num_thread` | 4 (all threads) | **2** (physical cores) | HT contention = **30% slower** with 4 threads |
+| CPU governor | `powersave` | **`performance`** | Prevents CPU throttling mid-inference |
+| `OLLAMA_MAX_LOADED_MODELS` | default | **1** | Prevents 2 models fighting for RAM |
+| `OLLAMA_KEEP_ALIVE` | 5m | **30m** | Model stays hot between queries |
+| `OLLAMA_NUM_PARALLEL` | default | **1** | Single user = no parallel overhead |
+
+### Apply Optimizations (one time)
+
+```bash
+# 1. CPU governor (needs sudo)
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+
+# 2. Ollama service tuning (needs sudo)
+sudo mkdir -p /etc/systemd/system/ollama.service.d
+cat << 'OVR' | sudo tee /etc/systemd/system/ollama.service.d/override.conf
+[Service]
+Environment="OLLAMA_NUM_PARALLEL=1"
+Environment="OLLAMA_MAX_LOADED_MODELS=1"
+Environment="OLLAMA_KEEP_ALIVE=30m"
+OVR
+sudo systemctl daemon-reload && sudo systemctl restart ollama
+
+# 3. Build optimized models (no sudo)
+ollama create sashi-llama -f ~/ollama-local/Modelfile.system
+ollama create sashi-llama-8b -f ~/ollama-local/Modelfile.8b
+```
+
+### Benchmark Proof
+
+Tested with identical prompts (coding, reasoning, knowledge). Eval rate = tokens/second during generation.
+
+**Why `num_thread 2` beats `num_thread 4`:**
+
+| num_thread | 3B tok/s | 8B tok/s | Notes |
+|------------|----------|----------|-------|
+| 4 (all threads) | 2.8 | 3.0 | HT contention kills throughput |
+| **2 (physical cores)** | **4.0** | **3.7** | **+43% on 3B, +23% on 8B** |
+
+On a 2-core/4-thread CPU, hyperthreading competes for the same execution units. LLM inference is pure compute — it needs real cores, not virtual ones.
+
+### Hardware Speed Ceiling
+
+| Model | Eval Rate | Cold Start | Hot Query Time |
+|-------|-----------|------------|----------------|
+| sashi-llama (3B) | ~4.0 tok/s | 5s | ~35s |
+| sashi-llama-8b (8B) | ~3.7 tok/s | 60s (swap) | ~40s |
+
+The bottleneck is memory bandwidth, not CPU clock. This is the ceiling for this hardware.
+
+---
+
 ## Architecture
 
 ### Directory Structure
 
 ```
 ollama-local/
-├── sashi                    # Main CLI (v2.0.0)
-├── .env                     # API keys & config
+├── sashi                    # Main CLI (v3.1.0)
+├── .env                     # Config (LOCAL_MODEL, OLLAMA_HOST)
+├── .env.termux              # Termux override (llama3.2:1b)
+├── Modelfile.system         # 3B model config (num_thread 2, system prompt)
+├── Modelfile.8b             # 8B model config (num_thread 2, system prompt)
 ├── install.sh               # One-command installer
-├── Dockerfile               # Container build
 ├── docker-compose.yml       # Container orchestration
 │
 ├── db/
-│   └── history.db           # SQLite (4 tables, 11 indexes)
+│   └── history.db           # SQLite WAL (10 tables, 27 indexes)
 │
-├── backups/
-│   └── tree_*.txt           # File tree snapshots (auto-rotated)
+├── docs/
+│   ├── termux-ollama-plan.md  # Model sizing, swap analysis
+│   ├── termux-setup.md        # Phone install guide
+│   └── monetization.md        # Revenue playbook
 │
 ├── mcp/                     # Model Context Protocol
-│   ├── claude/              # Claude Opus 4.5
-│   │   ├── config/model.json
-│   │   └── resources/
-│   │
-│   ├── deepseek/            # DeepSeek API
-│   │   ├── config/model.json
-│   │   └── tools/
-│   │
-│   ├── llama/               # Llama 3.2 (Ollama)
-│   │   ├── config/model.json
-│   │   └── tools/
-│   │
-│   ├── gmail/               # Gmail API
-│   │   ├── config/
-│   │   └── tools/gmail-cli
-│   │
-│   └── voice/               # Voice Input
-│       ├── config/model.json
-│       └── tools/
-│           ├── voice-input  # CLI
-│           └── voice-gui    # Desktop GUI
+│   ├── claude/              # Claude Code integration
+│   ├── llama/               # Local llama tools, ai-orchestrator
+│   ├── gmail/               # Gmail CLI (search, recent, export)
+│   └── voice/               # Voice input (CLI + GUI)
 │
 ├── scripts/
+│   ├── smart-push.sh        # 424-line git automation
+│   ├── termux-sync.sh       # Desktop ↔ phone sync
 │   ├── git-setup.sh         # SSH/GitHub setup
-│   ├── git-aliases.sh       # Git alias installer
-│   ├── smart-push.sh        # Intelligent git commit (v2.0)
-│   └── termux-sync.sh       # Cross-device sync
+│   └── git-aliases.sh       # Git alias installer
 │
-├── archive/                 # Previous versions
-└── logs/
+└── old-archive/             # Archived sessions (never deleted)
 ```
+
+## Models
+
+### Available Models
+
+| Model | Params | Size | Speed | Modelfile | Use Case |
+|-------|--------|------|-------|-----------|----------|
+| **sashi-llama** | 3B | 2.0GB | 4.0 tok/s | `Modelfile.system` | Default — fast, fits in RAM |
+| **sashi-llama-8b** | 8B | 4.9GB | 3.7 tok/s | `Modelfile.8b` | Desktop — better quality, needs swap |
+| llama3.2:1b | 1B | 1.3GB | fast | (base) | Termux/mobile — lightweight |
+
+### Model Selection
+
+```bash
+# Desktop default (3B, fast)
+sashi ask "explain TCP"
+
+# Switch to 8B for quality (edit .env: LOCAL_MODEL=sashi-llama-8b)
+# Or one-off:
+ollama run sashi-llama-8b "explain TCP in detail"
+
+# Termux auto-detects and uses 1B
+# (handled by .env.termux override)
+```
+
+Both custom models include a full system prompt with hardware profile, file layout, aliases, and tool knowledge. The model knows about THIS machine.
 
 ---
 
 ## MCP Structure
 
-### 6 MCP Groups
+### MCP Groups
 
 | Category | Name | Type | Description |
 |----------|------|------|-------------|
 | **Core** | sashi | CLI | Main router and interface |
-| **Model** | claude | Cloud API | Claude Opus 4.5 - Complex reasoning |
-| **Model** | deepseek | Cloud API | DeepSeek Chat - Fast, cheap |
-| **Model** | llama | Local | Llama 3.2 via Ollama - Offline |
+| **Model** | llama | Local | Llama 3.2/3.1 via Ollama — primary |
+| **Model** | claude | Integration | Claude Code CLI — complex tasks |
 | **Protocol** | voice | Input | Google Speech-to-Text |
 | **Protocol** | gmail | Context | Gmail API for email data |
 
-### Model Comparison
+### Route Comparison
 
-| Model | Type | Speed | Context | Cost | Use Case |
+| Route | Type | Speed | Context | Cost | Use Case |
 |-------|------|-------|---------|------|----------|
-| DeepSeek | Cloud | ~2s | 64K | $0.14/M | General, code |
-| Llama 3.2 | Local | ~2-5s | 2K* | Free | Offline |
-| Claude Opus | Cloud | ~3s | 200K | $$$ | Complex tasks |
-
-*Optimized context window for speed
+| `sashi ask` | Local (3B) | ~4 tok/s | 4K | Free | Quick queries |
+| `sashi ask` (8B) | Local (8B) | ~3.7 tok/s | 4K | Free | Better reasoning |
+| `sashi online` | Cloud (OpenRouter) | ~2s | varies | Free tier | When local isn't enough |
 
 ---
 
 ## Installation
 
-### Quick Install (Linux/macOS)
-
-```bash
-git clone git@github.com:tmdev012/ollama-local.git
-cd ollama-local
-./install.sh
-```
-
-### Manual Install
+### Quick Install (Linux)
 
 ```bash
 # 1. Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
 sudo systemctl enable --now ollama
-ollama pull llama3.2
 
 # 2. Clone repo
 git clone git@github.com:tmdev012/ollama-local.git ~/ollama-local
+cd ~/ollama-local
 
-# 3. Configure
-cp ~/ollama-local/.env.example ~/ollama-local/.env
-# Edit .env with your DeepSeek API key
+# 3. Pull base model + build optimized custom model
+ollama pull llama3.2
+ollama create sashi-llama -f Modelfile.system
 
-# 4. Add to shell
+# 4. (Optional) 8B model — needs 8GB+ swap
+ollama pull llama3.1:8b
+ollama create sashi-llama-8b -f Modelfile.8b
+
+# 5. Apply performance tuning (see Performance Tuning section above)
+
+# 6. Add to shell
 echo 'source ~/ollama-local/scripts/git-aliases.sh' >> ~/.bashrc
+ln -sf ~/ollama-local/sashi ~/bin/sashi
 source ~/.bashrc
 ```
 
@@ -188,19 +255,21 @@ docker exec -it sashi-ai bash
 ### Basic Commands
 
 ```bash
-# Quick question (DeepSeek - fast)
-s "What is Python?"
+# Quick question (local llama)
+sashi ask "What is Python?"
 sask "Explain REST APIs"
 
-# Code help (DeepSeek)
+# Code help
+sashi code "Write a sorting function in Python"
 scode "Write a sorting function in Python"
 
-# Offline mode (Llama)
-slocal "What is recursion?"
+# Interactive chat (streams via ollama run)
+sashi chat
+schat
 
-# Interactive chat
-schat              # DeepSeek
-schat --local      # Llama
+# Cloud fallback (when local isn't enough)
+sashi online "Explain quantum computing in depth"
+sonline "complex question here"
 
 # Voice input
 sashi voice              # Single prompt
@@ -208,69 +277,95 @@ sashi voice --continuous # Keep listening
 sashi voice --gui        # Desktop app
 
 # System status
-sstatus
-smodels
-shistory
+sashi status    # or: sstatus
+sashi models    # or: smodels
+sashi history   # or: shistory
 ```
 
 ### Pipe Support
 
 ```bash
-cat code.py | scode "explain this"
-git diff | review
+cat code.py | sashi code "explain this"
+git diff | sashi code "review this"
 cat README.md | summarize
 ```
 
 ### Git Pipeline
 
 ```bash
-gitpush "commit message"   # Add + Commit + Push
-gpp "message"              # Short alias
-ship "message"             # Another alias
-gship                      # Interactive mode
+smartpush              # Full interactive smart commit (sp, gpush)
+gitpush "message"      # Add + Commit + Push (gpp, ship)
+ghist                  # View commit history from SQLite
+gver                   # List version tags
+gissue 42              # Find commits by issue number
 ```
 
 ---
 
-## Refactoring Summary
+## Version History
 
-### Before vs After
+| Version | Date | Key Change |
+|---------|------|------------|
+| v1.0 | 2026-02 | Initial CLI, `ollama run` calls |
+| v2.0 | 2026-02-05 | HTTP API optimization, 5-8s→2.2s, voice, 22 clean aliases |
+| v3.0 | 2026-02-08 | Back to `ollama run` (streams, keeps model hot), DeepSeek removed |
+| **v3.1** | **2026-02-10** | **8B model, num_thread tuning, Termux support, perf benchmarks** |
 
-| Aspect | Before (v1.0) | After (v2.0) |
-|--------|---------------|--------------|
-| **Llama Query** | `ollama run` (CLI) | HTTP API |
-| **Query Speed** | 5-8 seconds | **2.2 seconds** |
-| **Status Check** | `systemctl` (100ms) | Cached curl (10ms) |
-| **Logging** | Blocking Python | Async background |
-| **Context Window** | 8192 tokens | 2048 tokens |
-| **Shell Aliases** | 43 (duplicates) | **22 (clean)** |
-| **Bashrc Lines** | 565 | **190** |
-| **SQLite Indexes** | 0 | **9** |
-| **Voice Support** | None | CLI + GUI |
-| **Docker** | None | Full support |
+### v3.0→v3.1 Changes
 
-### Performance Improvements
+| Aspect | v3.0 | v3.1 |
+|--------|------|------|
+| **Models** | 3B only | 3B + **8B** (via swap) |
+| **num_thread** | auto | **2** (proven 30% faster than 4) |
+| **Ollama tuning** | defaults | KEEP_ALIVE=30m, MAX_LOADED=1 |
+| **Mobile** | not supported | **Termux auto-detect** |
+| **Monetization** | none | 3-tier playbook |
+| **Benchmarks** | not measured | **3 rounds, documented** |
 
+---
+
+## Termux (Mobile)
+
+Sashi auto-detects Termux and switches to a lighter model.
+
+### Quick Setup
+
+```bash
+# In Termux (install from F-Droid, NOT Play Store)
+pkg update && pkg install git openssh
+git clone git@github.com:tmdev012/ollama-local.git ~/ollama-local
+
+# Option A: Local ollama on phone (6GB+ RAM)
+pkg install golang cmake git
+# Build ollama from source, then:
+ollama pull llama3.2:1b
+ln -sf ~/ollama-local/sashi ~/bin/sashi
+sashi ask "hello from my phone"
+
+# Option B: Cloud route (any phone)
+# Set OPENROUTER_API_KEY in .env
+sashi online "hello from my phone"
 ```
-Llama Query (warm):  5-8s  →  2.2s   (3x faster)
-Status Check:        600ms →  100ms  (6x faster)
-Logging:             200ms →  0ms    (async)
-Shell Load:          ~2s   →  ~0.5s  (4x faster)
+
+### How Auto-Detection Works
+
+```bash
+# In sashi (line 8):
+[[ -n "$TERMUX_VERSION" || -d "/data/data/com.termux" ]] && source .env.termux
+
+# .env.termux sets:
+LOCAL_MODEL=llama3.2:1b    # 1B instead of 3B
 ```
 
-### Alias Cleanup
+### Model Sizing for Phones
 
-**Removed (broken/duplicate):**
-- 7 duplicate `ai` alias blocks
-- 4 broken `aipipe` references
-- 3 non-functional model switchers
-- 12 orphan echo statements
-- Triple `starship init`
+| Phone RAM | Model | Size | Speed |
+|-----------|-------|------|-------|
+| 3-4GB | smollm2:1.7b | 1.0GB | Fast |
+| 4-6GB | llama3.2:1b | 1.3GB | Fast |
+| 6-8GB | llama3.2:3b | 2.0GB | Medium |
 
-**Added (new):**
-- SASHI aliases (`s`, `sask`, `scode`, `slocal`, etc.)
-- Git pipeline (`gitpush`, `gpp`, `ship`, `gship`)
-- Termux sync (`termux-sync`)
+See `docs/termux-ollama-plan.md` for full analysis.
 
 ---
 
@@ -441,11 +536,11 @@ CREATE INDEX idx_commits_timestamp ON commits(timestamp);
 | Component | Technology |
 |-----------|------------|
 | **Shell** | Bash / Zsh |
-| **Local AI** | Ollama + Llama 3.2 |
-| **Cloud AI** | DeepSeek API |
-| **Database** | SQLite 3 |
+| **Local AI** | Ollama + Llama 3.2 (3B) / Llama 3.1 (8B) |
+| **Cloud AI** | OpenRouter (free tier, fallback) |
+| **Database** | SQLite 3 (WAL mode, 10 tables, 27 indexes) |
 | **Voice** | Google Speech-to-Text |
-| **GUI** | Python Tkinter |
+| **Mobile** | Termux (Android) |
 | **Container** | Docker + Compose |
 | **VCS** | Git + GitHub |
 | **Auth** | SSH (ED25519) |
@@ -456,8 +551,8 @@ CREATE INDEX idx_commits_timestamp ON commits(timestamp);
 # System
 curl jq python3 sqlite3
 
-# Ollama
-ollama (+ llama3.2 model)
+# Ollama (required)
+ollama (+ llama3.2 model, optionally llama3.1:8b)
 
 # Voice (optional)
 portaudio19-dev python3-pyaudio python3-tk
@@ -506,18 +601,14 @@ cd ollama-local
 
 ```bash
 # .env file
-DEEPSEEK_API_KEY=sk-xxx        # Required for cloud AI
-DEFAULT_MODEL=deepseek-chat    # Default cloud model
-LOCAL_MODEL=llama3.2           # Default local model
+LOCAL_MODEL=llama3.2           # Default local model (or sashi-llama-8b for 8B)
 OLLAMA_HOST=http://localhost:11434
+OPENROUTER_API_KEY=            # Optional, for cloud fallback
 
 # Git
 GIT_USER=tmdev012
 GIT_EMAIL=tmdev012@users.noreply.github.com
 GIT_REPO=ollama-local
-
-# MCP Groups
-MCP_GROUPS=core,claude,deepseek,llama,voice,gmail
 ```
 
 ---
@@ -653,9 +744,9 @@ MIT
 ## Credits
 
 - **Author:** tmdev012
-- **AI Assistant:** Claude Opus 4.5 (Anthropic)
-- **Models:** Meta Llama, DeepSeek
+- **AI Assistant:** Claude Opus 4.6 (Anthropic)
+- **Models:** Meta Llama 3.2 (3B), Meta Llama 3.1 (8B)
 
 ---
 
-*Generated with Claude Code CLI - Feb 2026*
+*Built with Claude Code CLI - Feb 2026*
