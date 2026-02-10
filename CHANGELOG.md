@@ -1,5 +1,37 @@
 # SASHI / ollama-local Changelog
 
+## Session Report - 2026-02-10
+
+### Performance Fix: CPU Governor + Ollama Tuning
+- **Root cause**: CPU governor stuck on `powersave` — throttling inference
+- **Fix**: governor → `performance`, persistent via systemd oneshot
+- **Ollama tuning**: NUM_PARALLEL=1, MAX_LOADED_MODELS=1, KEEP_ALIVE=30m, FLASH_ATTENTION=1
+- **Modelfiles**: added `num_thread 4` to both 3B and 8B configs
+
+### llama3.1:8b Desktop Model (enabled by 8GB swap)
+- Benchmarked 3B vs 8B: 4.0 vs 3.2 tok/s (pre-fix)
+- Created `Modelfile.8b` with full sashi system prompt
+- Created `sashi-llama-8b` custom model
+- 8B viable on desktop with swap (4.9GB model, ~61s cold start)
+
+### Termux Mobile Support
+- Created `.env.termux` override (llama3.2:1b for phones)
+- Added Termux auto-detection to sashi CLI
+- Wrote `docs/termux-setup.md` and `docs/termux-ollama-plan.md`
+
+### Monetization Playbook
+- Created `docs/monetization.md` — 3-tier revenue plan
+- Local AI Setup Service, Git Automation, Consulting Retainer
+- White-label AI assistant for legal/medical/finance verticals
+
+### Pre-fix Benchmark Results
+| Model | Eval Rate | Cold Start | Hot Wall Time |
+|-------|-----------|------------|---------------|
+| sashi-llama (3B) | 4.0 tok/s | 5s | ~35s |
+| llama3.1:8b | 3.2 tok/s | 61s (swap) | ~40-44s |
+
+---
+
 ## Session Report - 2026-02-05
 
 ### Overview

@@ -5,6 +5,8 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/.env" 2>/dev/null || true
+# Termux override: use lighter model on Android
+[[ -n "$TERMUX_VERSION" || -d "/data/data/com.termux" ]] && source "$SCRIPT_DIR/.env.termux" 2>/dev/null || true
 
 VERSION="3.0.0"
 DB_PATH="${SASHI_DB:-$SCRIPT_DIR/db/history.db}"
@@ -30,12 +32,14 @@ $(echo -e "${BLUE}SASHI${NC}") v$VERSION - Local-first AI (llama3.2 via ollama r
 Usage: sashi <command> [prompt]
 
 Commands:
-  ask <prompt>      Quick question (llama3.2)
-  code <prompt>     Code generation (llama3.2)
-  local <prompt>    Same as ask (all local now)
+  ask <prompt>      Quick question (local llama)
+  code <prompt>     Code generation (local llama)
+  local <prompt>    Same as ask
+  online <prompt>   Cloud query (OpenRouter free models)
+  cloud <prompt>    Alias for online
   chat              Interactive chat (ollama run)
   history           Show query history
-  status            System status
+  status            System status + model availability
   models            List available models
   gmail <cmd>       Gmail access (search/recent/export)
   voice [opts]      Voice input (--gui, --continuous)
@@ -90,6 +94,48 @@ code_query() {
     llama_query "$prompt"
 }
 
+# Online query via OpenRouter (free cloud models)
+online_query() {
+    local prompt="$1"
+    if [ -z "$OPENROUTER_API_KEY" ]; then
+        echo -e "${RED}OpenRouter not configured. Add OPENROUTER_API_KEY to ~/ollama-local/.env${NC}"
+        echo "Get a free key at: https://openrouter.ai/keys"
+        return 1
+    fi
+
+    local model="${OPENROUTER_MODEL:-meta-llama/llama-3.1-8b-instruct:free}"
+    local start_time=$(date +%s%3N)
+
+    echo -e "${BLUE}Cloud${NC} ($model)"
+
+    # Escape prompt for JSON
+    local escaped_prompt
+    escaped_prompt=$(printf '%s' "$prompt" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')
+
+    curl -sN https://openrouter.ai/api/v1/chat/completions \
+        -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "{\"model\":\"$model\",\"messages\":[{\"role\":\"user\",\"content\":$escaped_prompt}],\"stream\":true}" \
+        2>/dev/null | while IFS= read -r line; do
+            # SSE format: data: {...}
+            line="${line#data: }"
+            [ "$line" = "[DONE]" ] && break
+            [ -z "$line" ] && continue
+            local content
+            content=$(echo "$line" | python3 -c 'import sys,json
+try:
+    d=json.load(sys.stdin)
+    c=d.get("choices",[{}])[0].get("delta",{}).get("content","")
+    if c: print(c,end="")
+except: pass' 2>/dev/null)
+            [ -n "$content" ] && printf '%s' "$content"
+        done
+    echo ""
+
+    local duration=$(( $(date +%s%3N) - start_time ))
+    log_query "openrouter:$model" "$prompt" "0" "$duration"
+}
+
 show_status() {
     echo -e "${BLUE}SASHI System Status${NC} v$VERSION"
     echo "===================="
@@ -100,6 +146,19 @@ show_status() {
         echo -e "Ollama:    ${GREEN}Running${NC}"
     else
         echo -e "Ollama:    ${RED}Stopped${NC}"
+    fi
+
+    if [ -n "$OPENROUTER_API_KEY" ]; then
+        echo -e "Online:    ${GREEN}Configured${NC} (${OPENROUTER_MODEL:-meta-llama/llama-3.1-8b-instruct:free})"
+    else
+        echo -e "Online:    ${YELLOW}Not configured${NC} (set OPENROUTER_API_KEY in .env)"
+    fi
+
+    # Detect environment
+    if [ -n "$TERMUX_VERSION" ]; then
+        echo -e "Env:       Termux (Android)"
+    else
+        echo -e "Env:       Linux ($(uname -m))"
     fi
 
     echo ""
@@ -149,11 +208,28 @@ interactive_chat() {
     ollama run "$MODEL"
 }
 
+# Environment detection (Termux, Linux, etc.)
+detect_environment() {
+    if [ -n "$TERMUX_VERSION" ]; then
+        SASHI_ENV="termux"
+        if curl -s --connect-timeout 1 http://localhost:11434/api/tags > /dev/null 2>&1; then
+            SASHI_ROUTE="local"
+        elif [ -n "$OPENROUTER_API_KEY" ]; then
+            SASHI_ROUTE="online"
+        else
+            SASHI_ROUTE="offline"
+        fi
+    else
+        SASHI_ENV="linux"
+        SASHI_ROUTE="local"
+    fi
+}
+
 # Read stdin if available
 STDIN_DATA=""
 [ ! -t 0 ] && STDIN_DATA=$(cat -)
 
-# Main command routing - all routes through ollama run now
+# Main command routing
 case "${1:-help}" in
     ask)
         shift
@@ -172,6 +248,12 @@ case "${1:-help}" in
         prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"
         [ -z "$prompt" ] && { echo "Usage: sashi local <prompt>"; exit 1; }
         llama_query "$prompt"
+        ;;
+    online|cloud)
+        shift
+        prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"
+        [ -z "$prompt" ] && { echo "Usage: sashi online <prompt>"; exit 1; }
+        online_query "$prompt"
         ;;
     chat)
         interactive_chat
