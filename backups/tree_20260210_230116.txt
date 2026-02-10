@@ -1,0 +1,122 @@
+.
+├── 4c1981b
+├── alist-v0.3.txt
+├── CHANGELOG.md
+├── db
+│   └── history.db
+├── docker-compose.yml
+├── Dockerfile
+├── docs
+│   ├── diagrams
+│   │   ├── data-flow-animated.svg
+│   │   ├── data-flow.svg
+│   │   ├── process-map-animated.svg
+│   │   ├── process-map.svg
+│   │   ├── smart-push-animated.svg
+│   │   └── smart-push.svg
+│   ├── monetization.md
+│   ├── termux-ollama-plan.md
+│   └── termux-setup.md
+├── git
+├── git-snippets
+│   └── snippets.md
+├── history.txt
+├── install.sh
+├── kafka
+├── lastseen.md
+├── logs
+├── mcp
+│   ├── claude
+│   │   ├── config
+│   │   │   └── model.json
+│   │   ├── prompts
+│   │   ├── resources
+│   │   │   └── matt-pocock-workflow.md
+│   │   └── tools
+│   ├── gmail
+│   │   ├── config
+│   │   │   ├── service-account.json
+│   │   │   └── setup.md
+│   │   ├── prompts
+│   │   ├── resources
+│   │   └── tools
+│   │       ├── auto-gcp-setup.sh
+│   │       ├── browser-oauth-setup.py
+│   │       ├── click-helper.py
+│   │       ├── gcp-setup
+│   │       ├── gmail-cli
+│   │       ├── gmail-setup
+│   │       └── service-account-setup.sh
+│   ├── llama
+│   │   ├── config
+│   │   │   └── model.json
+│   │   ├── prompts
+│   │   ├── resources
+│   │   └── tools
+│   │       ├── ai-general
+│   │       └── ai-orchestrator
+│   └── voice
+│       ├── config
+│       │   └── model.json
+│       ├── prompts
+│       ├── resources
+│       └── tools
+│           ├── install-voice
+│           ├── voice-gui
+│           └── voice-input
+├── Modelfile.8b
+├── Modelfile.system
+├── old-archive
+│   ├── CHANGELOG-v2.0-pre-session.md
+│   ├── env-pre-session.txt
+│   ├── git-diff-stat-all.txt
+│   ├── gitignore-pre-session.txt
+│   ├── git-log-full.txt
+│   ├── history-full-trace.txt
+│   ├── sashi-v2.0-pre-session.sh
+│   ├── session-2026-02-08
+│   │   ├── bashrc-with-stale-aliases.txt
+│   │   ├── CHANGELOG-v3.0.md
+│   │   ├── config
+│   │   │   └── weekend-tasks.json
+│   │   ├── FAQ.md
+│   │   ├── lib
+│   │   │   ├── py
+│   │   │   │   └── sashi_db.py
+│   │   │   └── sh
+│   │   │       ├── aliases
+│   │   │       │   ├── core.sh
+│   │   │       │   ├── git.sh
+│   │   │       │   ├── loader.sh
+│   │   │       │   ├── nav.sh
+│   │   │       │   ├── ollama.sh
+│   │   │       │   └── pipe.sh
+│   │   │       ├── env-guard.sh
+│   │   │       └── git-autonomous.sh
+│   │   ├── mcp-deepseek-dead
+│   │   │   ├── config
+│   │   │   │   └── model.json
+│   │   │   └── tools
+│   │   │       ├── ask
+│   │   │       ├── chat
+│   │   │       ├── deepseek-check.sh
+│   │   │       ├── deepseek-cli
+│   │   │       └── deepseek.sh
+│   │   ├── mcp-llama-stale
+│   │   │   ├── ai-code
+│   │   │   ├── ai-fast
+│   │   │   ├── ai-orchestrator
+│   │   │   └── ollama-chat.sh
+│   │   ├── sashi-v3.0.sh
+│   │   └── zshrc-with-stale-aliases.txt
+│   └── tree-pre-session-b55cee5.txt
+├── README.md
+├── sashi
+├── scripts
+│   ├── git-aliases.sh
+│   ├── git-setup.sh
+│   ├── smart-push.sh
+│   └── termux-sync.sh
+└── show
+
+43 directories, 77 files
