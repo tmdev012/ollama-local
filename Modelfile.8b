@@ -127,4 +127,4 @@ SQLite WAL mode. 10 tables:
 
 PARAMETER temperature 0.7
 PARAMETER num_ctx 4096
-PARAMETER num_thread 4
+PARAMETER num_thread 2
