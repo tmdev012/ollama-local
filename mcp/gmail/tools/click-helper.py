@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Use PyAutoGUI to help click through OAuth form"""
 
-import pyautogui
 import time
-import subprocess
-import os
+
+import pyautogui
 
 # Safety settings
 pyautogui.FAILSAFE = True
@@ -25,7 +24,7 @@ def find_and_click(image_name, confidence=0.8):
         if location:
             pyautogui.click(pyautogui.center(location))
             return True
-    except:
+    except Exception:
         pass
     return False
 
@@ -35,7 +34,7 @@ def main():
 
     # Take screenshot first
     print("\n[1] Taking screenshot to analyze...")
-    screenshot_path = take_screenshot()
+    take_screenshot()
 
     print("\n[2] Looking for form elements...")
 

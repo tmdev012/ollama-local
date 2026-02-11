@@ -1,6 +1,7 @@
 """E2E smoke tests — validate full application lifecycle."""
-import pytest
 import subprocess
+
+import pytest
 
 
 @pytest.mark.e2e

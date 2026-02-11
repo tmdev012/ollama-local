@@ -12,9 +12,9 @@ def test_python_version():
 @pytest.mark.unit
 def test_imports():
     """Verify core imports work."""
-    import json
-    import os
-    import pathlib
+    import json  # noqa: F401
+    import os  # noqa: F401
+    import pathlib  # noqa: F401
     assert True
 
 

@@ -4,16 +4,16 @@ Automated Browser OAuth Setup for Gmail API
 Uses Selenium to automate the OAuth client creation in Google Cloud Console
 """
 
-import os
-import sys
-import time
 import glob
+import os
+import time
+
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as ec
+from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
 CONFIG_DIR = os.path.expanduser("~/ollama-local/mcp/gmail/config")
@@ -51,7 +51,7 @@ def setup_driver():
 def wait_and_click(driver, by, value, timeout=10):
     """Wait for element and click it"""
     element = WebDriverWait(driver, timeout).until(
-        EC.element_to_be_clickable((by, value))
+        ec.element_to_be_clickable((by, value))
     )
     element.click()
     return element
@@ -59,7 +59,7 @@ def wait_and_click(driver, by, value, timeout=10):
 def wait_and_type(driver, by, value, text, timeout=10):
     """Wait for element and type into it"""
     element = WebDriverWait(driver, timeout).until(
-        EC.presence_of_element_located((by, value))
+        ec.presence_of_element_located((by, value))
     )
     element.clear()
     element.send_keys(text)
@@ -89,14 +89,17 @@ def create_oauth_client(driver):
     try:
         # Click application type dropdown
         dropdown = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "mat-select[formcontrolname='applicationType'], [aria-label*='Application type']"))
+            ec.element_to_be_clickable((
+                By.CSS_SELECTOR,
+                "mat-select[formcontrolname='applicationType'], [aria-label*='Application type']",
+            ))
         )
         dropdown.click()
         time.sleep(1)
 
         # Select Desktop app
         desktop_option = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//mat-option[contains(., 'Desktop app')]"))
+            ec.element_to_be_clickable((By.XPATH, "//mat-option[contains(., 'Desktop app')]"))
         )
         desktop_option.click()
         time.sleep(1)
@@ -110,11 +113,14 @@ def create_oauth_client(driver):
     print("[3/6] Entering name 'sashi-cli'...")
     try:
         name_input = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "input[formcontrolname='displayName'], input[aria-label*='Name']"))
+            ec.presence_of_element_located((
+                By.CSS_SELECTOR,
+                "input[formcontrolname='displayName'], input[aria-label*='Name']",
+            ))
         )
         name_input.clear()
         name_input.send_keys("sashi-cli")
-    except:
+    except Exception:
         # Fallback
         inputs = driver.find_elements(By.TAG_NAME, "input")
         for inp in inputs:
@@ -129,10 +135,10 @@ def create_oauth_client(driver):
     print("[4/6] Clicking CREATE...")
     try:
         create_btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Create') or contains(., 'CREATE')]"))
+            ec.element_to_be_clickable((By.XPATH, "//button[contains(., 'Create') or contains(., 'CREATE')]"))
         )
         create_btn.click()
-    except:
+    except Exception:
         # Try by mat-button
         driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
 
@@ -142,7 +148,7 @@ def create_oauth_client(driver):
     print("[5/6] Waiting for popup and clicking DOWNLOAD JSON...")
     try:
         download_btn = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Download') or contains(., 'DOWNLOAD')]"))
+            ec.element_to_be_clickable((By.XPATH, "//button[contains(., 'Download') or contains(., 'DOWNLOAD')]"))
         )
         download_btn.click()
         print("[OK] Download initiated!")
