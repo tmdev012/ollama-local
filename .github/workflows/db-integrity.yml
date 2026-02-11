@@ -1,0 +1,30 @@
+name: DB Schema Check
+
+on:
+  push:
+    branches: [main]
+    paths: ['db/**', 'scripts/**']
+  pull_request:
+    branches: [main]
+    paths: ['db/**', 'scripts/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schema-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate SQL files
+        run: |
+          for f in $(find db/ -name '*.sql' 2>/dev/null); do
+            echo "Checking $f..."
+            sqlite3 :memory: < "$f" && echo "  OK" || echo "  SYNTAX ERROR"
+          done
+          echo "Schema validation complete"
+      - name: Check db directory structure
+        run: |
+          echo "DB files:"
+          find db/ -type f 2>/dev/null | sort || echo "No db directory"

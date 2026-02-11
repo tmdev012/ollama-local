@@ -1,0 +1,37 @@
+name: Sashi CLI Validation
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ['sashi', '.env.example', 'install.sh']
+  pull_request:
+    branches: [main]
+    paths: ['sashi', '.env.example', 'install.sh']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check sashi is executable
+        run: test -x sashi || (echo "sashi not executable" && exit 1)
+      - name: Syntax check
+        run: bash -n sashi
+      - name: Check required functions exist
+        run: |
+          for fn in main show_help; do
+            grep -q "^${fn}()\|^function ${fn}" sashi && echo "Found: $fn" || echo "Missing: $fn"
+          done
+      - name: Verify no hardcoded paths
+        run: |
+          if grep -n '/home/tmdev012' sashi; then
+            echo "WARNING: Hardcoded user paths found"
+          else
+            echo "OK: No hardcoded user paths"
+          fi
+      - name: Install script syntax check
+        run: bash -n install.sh
