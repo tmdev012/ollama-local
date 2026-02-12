@@ -16,14 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: ShellCheck sashi
-        uses: ludeeus/action-shellcheck@2.0.0
-        with:
-          scandir: .
-          additional_files: sashi
-
-      - name: ShellCheck scripts
-        run: shellcheck scripts/*.sh
+      - name: ShellCheck
+        run: shellcheck -x --severity=error sashi scripts/*.sh
 
       - name: Python syntax check
         run: python3 -m py_compile scripts/init-db.py
