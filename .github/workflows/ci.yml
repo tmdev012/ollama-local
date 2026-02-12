@@ -1,23 +1,34 @@
 name: CI
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: ShellCheck sashi
-        run: shellcheck -x sashi || true
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: .
+          additional_files: sashi
+
       - name: ShellCheck scripts
-        run: find scripts -name '*.sh' | xargs shellcheck || true
+        run: shellcheck scripts/*.sh
+
       - name: Python syntax check
         run: python3 -m py_compile scripts/init-db.py
-      - name: Ruff lint (lenient)
-        run: |
-          pip install ruff
-          ruff check . || true
+
+      - name: Ruff lint
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check

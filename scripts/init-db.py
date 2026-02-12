@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Initialize SQLite database with indexes for SASHI."""
-import sqlite3
 import os
+import sqlite3
 
 db_dir = os.environ.get("SASHI_DB_DIR", "/root/ollama-local/db")
 os.makedirs(db_dir, exist_ok=True)
