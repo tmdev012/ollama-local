@@ -5,7 +5,7 @@ SHELL := /bin/bash
 SASHI := ./sashi
 DB    := db/history.db
 
-.PHONY: help check test lint clean status push dev all
+.PHONY: help check test lint clean status push dev all docker
 
 help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -58,3 +58,6 @@ clean: ## Remove caches
 
 db-init: ## Initialize database
 	@python3 scripts/init-db.py && echo "DB ready."
+
+docker: ## Build and run Docker container
+	docker compose build && docker compose up -d && echo "Sashi container running."

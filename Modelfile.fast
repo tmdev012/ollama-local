@@ -1,0 +1,17 @@
+FROM llama3.2
+
+SYSTEM """You are Sashi, a local AI assistant. Be concise. No fluff. Answer directly.
+System: i7-6500U 2C/4T, 7.6GB RAM, no GPU, Ubuntu Linux.
+CLI: ~/ollama-local/sashi (bash). DB: SQLite at db/history.db.
+Use ollama run (never curl API). num_thread=2 always."""
+
+PARAMETER temperature 0.5
+PARAMETER num_ctx 2048
+PARAMETER num_predict 512
+PARAMETER num_thread 2
+PARAMETER top_k 20
+PARAMETER top_p 0.8
+PARAMETER repeat_penalty 1.1
+PARAMETER mirostat 2
+PARAMETER mirostat_eta 0.1
+PARAMETER mirostat_tau 4.0

@@ -12,6 +12,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/root
 ENV PATH="/root/ollama-local:/root/.local/bin:${PATH}"
 
+# Ollama tuning for CPU-only hardware
+ENV OLLAMA_NUM_PARALLEL=1
+ENV OLLAMA_MAX_LOADED_MODELS=1
+ENV OLLAMA_KEEP_ALIVE=30m
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -38,6 +43,12 @@ RUN chmod +x sashi scripts/*.py scripts/*.sh 2>/dev/null || true \
 # Initialize SQLite database with indexes
 RUN python3 scripts/init-db.py
 
+# Pull base model and build fast-sashi custom model
+RUN ollama serve & sleep 3 \
+    && ollama pull llama3.2 \
+    && ollama create fast-sashi -f Modelfile.fast \
+    && pkill ollama || true
+
 # Create shell aliases
 RUN printf '\n# SASHI Aliases\nalias s="/root/ollama-local/sashi"\nalias sask="/root/ollama-local/sashi ask"\nalias scode="/root/ollama-local/sashi code"\nalias slocal="/root/ollama-local/sashi local"\nalias schat="/root/ollama-local/sashi chat"\nalias sstatus="/root/ollama-local/sashi status"\nalias ai="/root/ollama-local/sashi"\n' >> /root/.bashrc
 
@@ -48,5 +59,5 @@ EXPOSE 11434
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:11434/api/tags || exit 1
 
-# Default: start Ollama and interactive shell
-CMD ["bash", "-c", "ollama serve & sleep 3 && ollama pull llama3.2 && exec bash"]
+# Start Ollama and drop into shell
+CMD ["bash", "-c", "ollama serve & sleep 3 && exec bash"]
