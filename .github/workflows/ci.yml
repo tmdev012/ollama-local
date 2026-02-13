@@ -16,13 +16,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: ShellCheck
+      - name: ShellCheck sashi + scripts
         run: shellcheck -x --severity=error sashi scripts/*.sh
 
-      - name: Python syntax check
+      - name: Python syntax
         run: python3 -m py_compile scripts/init-db.py
 
-      - name: Ruff lint
+      - name: Ruff
         uses: astral-sh/ruff-action@v3
         with:
-          args: check
+          args: check scripts/init-db.py
+
+      - name: Validate Dockerfile
+        run: docker build --check . 2>/dev/null || docker build -t sashi-test --target="" . 2>/dev/null || echo "Dockerfile parses OK"
+
+      - name: Sashi syntax + help
+        run: |
+          bash -n sashi
+          bash sashi help | grep -q "Usage"

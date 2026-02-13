@@ -3,7 +3,9 @@
 import os
 import sqlite3
 
-db_dir = os.environ.get("SASHI_DB_DIR", "/root/ollama-local/db")
+script_dir = os.path.dirname(os.path.abspath(__file__))
+repo_dir = os.path.dirname(script_dir)
+db_dir = os.environ.get("SASHI_DB_DIR", os.path.join(repo_dir, "db"))
 os.makedirs(db_dir, exist_ok=True)
 db_path = os.path.join(db_dir, "history.db")
 
