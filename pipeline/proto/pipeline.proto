@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package pipeline;
+
+// ============================================================
+// Football Telemetry + Ollama Automation Pipeline
+// Consolidated gRPC service for ollama-local
+// ============================================================
+
+// --- Core Services ---
+
+service InferenceService {
+  // Stream tokens from ollama run
+  rpc RunInference(InferenceRequest) returns (stream InferenceChunk);
+  // One-shot (collect all tokens, return single response)
+  rpc RunInferenceUnary(InferenceRequest) returns (InferenceResponse);
+}
+
+service FileWriterService {
+  // Atomic write of one or more files
+  rpc WriteFiles(WriteFilesRequest) returns (WriteFilesResponse);
+  // Read file contents
+  rpc ReadFile(ReadFileRequest) returns (ReadFileResponse);
+}
+
+service PipelineService {
+  // Execute a full pipeline: read task → run inference → write output
+  rpc RunPipeline(PipelineRequest) returns (stream PipelineEvent);
+  // Check system health
+  rpc HealthCheck(HealthRequest) returns (HealthResponse);
+}
+
+// --- Messages ---
+
+message InferenceRequest {
+  string prompt = 1;
+  string model = 2;           // default: from .env LOCAL_MODEL
+  string system_prompt = 3;   // optional system prompt
+  int32  num_thread = 4;      // default: 2 (physical cores)
+  float  temperature = 5;     // default: 0.7
+}
+
+message InferenceChunk {
+  string token = 1;
+  bool   done = 2;
+}
+
+message InferenceResponse {
+  string text = 1;
+  float  duration_sec = 2;
+  int32  token_count = 3;
+}
+
+message FileSpec {
+  string path = 1;
+  string content = 2;
+  bool   append = 3;          // false = overwrite, true = append
+  string mode = 4;            // chmod, e.g. "755", default "644"
+}
+
+message WriteFilesRequest {
+  repeated FileSpec files = 1;
+  bool atomic = 2;            // write all or none
+}
+
+message FileResult {
+  string path = 1;
+  bool   ok = 2;
+  string error = 3;
+  int64  bytes_written = 4;
+}
+
+message WriteFilesResponse {
+  bool ok = 1;
+  repeated FileResult results = 2;
+}
+
+message ReadFileRequest {
+  string path = 1;
+}
+
+message ReadFileResponse {
+  bool   ok = 1;
+  string content = 2;
+  string error = 3;
+}
+
+message PipelineRequest {
+  string task_id = 1;         // kanban task ID (optional)
+  string prompt = 2;          // direct prompt (if no task_id)
+  string output_path = 3;     // where to write result
+  string model = 4;
+  map<string, string> env = 5; // extra env vars
+}
+
+message PipelineEvent {
+  enum EventType {
+    STARTED = 0;
+    INFERENCE_TOKEN = 1;
+    INFERENCE_DONE = 2;
+    FILE_WRITTEN = 3;
+    COMPLETED = 4;
+    ERROR = 5;
+  }
+  EventType type = 1;
+  string message = 2;
+  float  elapsed_sec = 3;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool   ok = 1;
+  string ollama_status = 2;
+  string db_status = 3;
+  float  uptime_sec = 4;
+  string model = 5;
+  map<string, string> info = 6;
+}

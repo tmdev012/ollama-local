@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" font-family="monospace">
+  <style>
+    @keyframes packet1 {
+      0%   { transform: translate(0,0); opacity:0; }
+      5%   { opacity:1; }
+      25%  { transform: translate(160px,0); opacity:1; }
+      30%  { transform: translate(160px,0); opacity:0; }
+      100% { opacity:0; }
+    }
+    @keyframes packet2 {
+      0%,30% { opacity:0; }
+      35%  { transform: translate(0,0); opacity:1; }
+      55%  { transform: translate(150px,0); opacity:1; }
+      60%  { transform: translate(150px,0); opacity:0; }
+      100% { opacity:0; }
+    }
+    @keyframes packet3 {
+      0%,60% { opacity:0; }
+      65%  { transform: translate(0,0); opacity:1; }
+      85%  { transform: translate(160px,0); opacity:1; }
+      90%  { transform: translate(160px,0); opacity:0; }
+      100% { opacity:0; }
+    }
+    @keyframes token-stream {
+      0%   { width: 0; }
+      100% { width: 140px; }
+    }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+    .p1 { animation: packet1 4s ease-in-out infinite; }
+    .p2 { animation: packet2 4s ease-in-out infinite; }
+    .p3 { animation: packet3 4s ease-in-out infinite; }
+    .blink { animation: blink 1s step-end infinite; }
+    .stream-bar { animation: token-stream 3s ease-in-out infinite; }
+    .phase-label { font-size: 10px; fill: #8b949e; text-anchor: middle; }
+    .step-num { font-size: 22px; fill: #58a6ff; font-weight: bold; }
+    .step-title { font-size: 12px; fill: #e6edf3; font-weight: bold; }
+    .step-desc { font-size: 10px; fill: #8b949e; }
+    .connector { stroke: #30363d; stroke-width: 2; stroke-dasharray: 6,4; fill: none; }
+  </style>
+  <defs>
+    <marker id="ah2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#58a6ff"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="#0d1117" rx="12"/>
+  <text x="400" y="30" fill="#58a6ff" font-size="16" text-anchor="middle" font-weight="bold">Data Flow: Request Lifecycle</text>
+
+  <!-- Phase 1: Client Request -->
+  <rect x="30" y="60" width="170" height="100" rx="8" fill="#1a1a2e" stroke="#f59e0b" stroke-width="2"/>
+  <text x="115" y="82" class="step-num">1</text>
+  <text x="115" y="100" class="step-title">Client Request</text>
+  <text x="115" y="116" class="step-desc">sashi | pipe-run | python</text>
+  <text x="115" y="132" class="step-desc">gRPC call to :50051</text>
+  <!-- Animated request packet -->
+  <rect x="200" y="100" width="12" height="8" rx="2" fill="#f59e0b" class="p1"/>
+
+  <!-- Phase 2: gRPC Router -->
+  <rect x="230" y="60" width="170" height="100" rx="8" fill="#1a1a2e" stroke="#3b82f6" stroke-width="2"/>
+  <text x="315" y="82" class="step-num">2</text>
+  <text x="315" y="100" class="step-title">gRPC Router</text>
+  <text x="315" y="116" class="step-desc">protobuf deserialize</text>
+  <text x="315" y="132" class="step-desc">dispatch to service</text>
+
+  <!-- Phase 3: Service Handler -->
+  <rect x="430" y="60" width="170" height="100" rx="8" fill="#1a1a2e" stroke="#22c55e" stroke-width="2"/>
+  <text x="515" y="82" class="step-num">3</text>
+  <text x="515" y="100" class="step-title">Service Handler</text>
+  <text x="515" y="116" class="step-desc">Inference | FileWriter</text>
+  <text x="515" y="132" class="step-desc">Pipeline orchestration</text>
+  <rect x="400" y="100" width="12" height="8" rx="2" fill="#3b82f6" class="p2"/>
+
+  <!-- Phase 4: Backend -->
+  <rect x="630" y="60" width="140" height="100" rx="8" fill="#1a1a2e" stroke="#a78bfa" stroke-width="2"/>
+  <text x="700" y="82" class="step-num">4</text>
+  <text x="700" y="100" class="step-title">Backend</text>
+  <text x="700" y="116" class="step-desc">ollama run</text>
+  <text x="700" y="132" class="step-desc">filesystem | SQLite</text>
+  <rect x="600" y="100" width="12" height="8" rx="2" fill="#22c55e" class="p3"/>
+
+  <!-- Connectors top row -->
+  <path d="M200,110 L230,110" class="connector" marker-end="url(#ah2)"/>
+  <path d="M400,110 L430,110" class="connector" marker-end="url(#ah2)"/>
+  <path d="M600,110 L630,110" class="connector" marker-end="url(#ah2)"/>
+
+  <!-- === Inference Detail (bottom row) === -->
+  <text x="400" y="200" fill="#58a6ff" font-size="14" text-anchor="middle" font-weight="bold">Inference Pipeline Detail</text>
+
+  <!-- Step A: Prompt -->
+  <rect x="30" y="220" width="140" height="80" rx="8" fill="#162447" stroke="#60a5fa"/>
+  <text x="100" y="250" fill="#60a5fa" font-size="11" text-anchor="middle" font-weight="bold">Prompt In</text>
+  <text x="100" y="268" fill="#8b949e" font-size="9" text-anchor="middle">"explain quicksort"</text>
+  <text x="100" y="282" fill="#8b949e" font-size="9" text-anchor="middle">model: llama3.2</text>
+
+  <!-- Step B: ollama run -->
+  <rect x="210" y="220" width="160" height="80" rx="8" fill="#0d2818" stroke="#22c55e"/>
+  <text x="290" y="245" fill="#4ade80" font-size="11" text-anchor="middle" font-weight="bold">ollama run</text>
+  <text x="290" y="262" fill="#8b949e" font-size="9" text-anchor="middle">subprocess.Popen</text>
+  <text x="290" y="276" fill="#8b949e" font-size="9" text-anchor="middle">num_thread=2 (optimal)</text>
+  <!-- Spinner -->
+  <circle cx="358" cy="235" r="4" fill="none" stroke="#4ade80" stroke-width="2" stroke-dasharray="8,12" class="blink"/>
+
+  <!-- Step C: Token Stream -->
+  <rect x="410" y="220" width="180" height="80" rx="8" fill="#1a1a2e" stroke="#a78bfa"/>
+  <text x="500" y="245" fill="#c4b5fd" font-size="11" text-anchor="middle" font-weight="bold">Token Stream</text>
+  <rect x="430" y="258" width="0" height="10" rx="3" fill="#a78bfa" opacity="0.7" class="stream-bar"/>
+  <rect x="430" y="258" width="140" height="10" rx="3" fill="#a78bfa" opacity="0.15"/>
+  <text x="500" y="286" fill="#8b949e" font-size="9" text-anchor="middle">server-streaming RPC</text>
+
+  <!-- Step D: Output -->
+  <rect x="630" y="220" width="140" height="80" rx="8" fill="#2d1a0f" stroke="#f59e0b"/>
+  <text x="700" y="250" fill="#fbbf24" font-size="11" text-anchor="middle" font-weight="bold">Output</text>
+  <text x="700" y="268" fill="#8b949e" font-size="9" text-anchor="middle">file write (atomic)</text>
+  <text x="700" y="282" fill="#8b949e" font-size="9" text-anchor="middle">+ DB log</text>
+
+  <!-- Connectors bottom row -->
+  <path d="M170,260 L210,260" class="connector" marker-end="url(#ah2)"/>
+  <path d="M370,260 L410,260" class="connector" marker-end="url(#ah2)"/>
+  <path d="M590,260 L630,260" class="connector" marker-end="url(#ah2)"/>
+
+  <!-- Performance stats -->
+  <rect x="30" y="330" width="740" height="50" rx="8" fill="#161b22" stroke="#30363d"/>
+  <text x="50" y="352" fill="#58a6ff" font-size="11" font-weight="bold">Performance:</text>
+  <text x="170" y="352" fill="#4ade80" font-size="10">3B model: ~4.0 tok/s</text>
+  <text x="320" y="352" fill="#4ade80" font-size="10">8B model: ~3.7 tok/s</text>
+  <text x="470" y="352" fill="#fbbf24" font-size="10">num_thread=2 (physical cores)</text>
+  <text x="670" y="352" fill="#f87171" font-size="10">HT=4 is 30% slower</text>
+  <text x="50" y="368" fill="#8b949e" font-size="9">CPU governor: performance | ollama run (native) not curl API | gRPC streaming avoids timeout</text>
+</svg>

@@ -1,0 +1,33 @@
+#!/bin/bash
+# MCP Tool: pipe-run — gRPC pipeline client for sashi
+# Usage:
+#   pipe-run health                          Check system health
+#   pipe-run infer "your prompt"             One-shot inference
+#   pipe-run stream "your prompt"            Streaming inference
+#   pipe-run write /path/to/file "content"   Write file via gRPC
+#   pipe-run pipeline "prompt" /output/path  Full pipeline (infer → write)
+
+PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../pipeline" && pwd)"
+export PIPELINE_ADDR="${PIPELINE_ADDR:-localhost:50051}"
+
+if [[ $# -lt 1 ]]; then
+    cat <<EOF
+pipe-run — gRPC Pipeline Tool
+
+Commands:
+  health                       System health check
+  infer "prompt"               One-shot inference (ollama run via gRPC)
+  stream "prompt"              Streaming inference
+  write /path "content"        Write file atomically
+  pipeline "prompt" /out.txt   Full pipeline: infer → write to file
+
+Environment:
+  PIPELINE_ADDR=localhost:50051  gRPC server address
+
+Server:
+  cd ~/ollama-local/pipeline && make server
+EOF
+    exit 0
+fi
+
+python3 "$PIPELINE_DIR/client.py" "$@"

@@ -1,0 +1,13 @@
+{
+  "name": "pipeline",
+  "description": "gRPC automation pipeline — inference, file writes, task execution",
+  "version": "1.0.0",
+  "tools": [
+    {
+      "name": "pipe-run",
+      "description": "Run a pipeline: inference + file write via gRPC",
+      "usage": "pipe-run <command> [args...]",
+      "commands": ["health", "infer", "stream", "write", "pipeline"]
+    }
+  ]
+}

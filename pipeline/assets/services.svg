@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" font-family="monospace">
+  <style>
+    @keyframes glow { 0%,100%{filter:drop-shadow(0 0 2px #3b82f6);} 50%{filter:drop-shadow(0 0 8px #3b82f6);} }
+    @keyframes spin { 0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);} }
+    @keyframes write-anim {
+      0%,100% { height: 0; }
+      20% { height: 30px; }
+      40% { height: 30px; }
+      60% { height: 50px; }
+      80% { height: 50px; }
+    }
+    @keyframes heartbeat { 0%,100%{r:6;} 50%{r:9;} }
+    .glow { animation: glow 2s ease-in-out infinite; }
+    .hb { animation: heartbeat 1.5s ease-in-out infinite; }
+    .svc-title { font-size: 14px; fill: #e6edf3; font-weight: bold; text-anchor: middle; }
+    .method { font-size: 10px; fill: #4ade80; font-family: monospace; }
+    .desc { font-size: 9px; fill: #8b949e; }
+    .badge { font-size: 8px; fill: #0d1117; font-weight: bold; text-anchor: middle; }
+  </style>
+  <defs>
+    <linearGradient id="sg1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e3a5f"/><stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="sg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1f4e3d"/><stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="sg3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4e3a1f"/><stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="450" fill="#0d1117" rx="12"/>
+  <text x="400" y="32" fill="#58a6ff" font-size="16" text-anchor="middle" font-weight="bold">gRPC Service Map</text>
+
+  <!-- InferenceService -->
+  <rect x="20" y="55" width="240" height="175" rx="10" fill="url(#sg2)" stroke="#22c55e" stroke-width="2" class="glow"/>
+  <text x="140" y="80" class="svc-title">InferenceService</text>
+  <rect x="88" y="84" width="105" height="14" rx="4" fill="#22c55e"/>
+  <text x="140" y="95" class="badge">STREAMING</text>
+
+  <text x="35" y="118" class="method">RunInference()</text>
+  <text x="35" y="132" class="desc">Server-streaming RPC</text>
+  <text x="35" y="144" class="desc">Wraps: ollama run &lt;model&gt; &lt;prompt&gt;</text>
+  <text x="35" y="156" class="desc">Returns: stream of InferenceChunk</text>
+
+  <line x1="35" y1="165" x2="245" y2="165" stroke="#30363d" stroke-width="1"/>
+
+  <text x="35" y="182" class="method">RunInferenceUnary()</text>
+  <text x="35" y="196" class="desc">Collect all tokens, return single response</text>
+  <text x="35" y="208" class="desc">Returns: text + duration + token_count</text>
+  <text x="35" y="220" class="desc">Timeout: 120s</text>
+
+  <!-- FileWriterService -->
+  <rect x="280" y="55" width="240" height="175" rx="10" fill="url(#sg1)" stroke="#a78bfa" stroke-width="2" class="glow"/>
+  <text x="400" y="80" class="svc-title">FileWriterService</text>
+  <rect x="355" y="84" width="90" height="14" rx="4" fill="#a78bfa"/>
+  <text x="400" y="95" class="badge">ATOMIC</text>
+
+  <text x="295" y="118" class="method">WriteFiles()</text>
+  <text x="295" y="132" class="desc">Batch file write (all-or-none)</text>
+  <text x="295" y="144" class="desc">Supports: overwrite, append, chmod</text>
+  <text x="295" y="156" class="desc">Atomic: temp-write then move</text>
+
+  <line x1="295" y1="165" x2="505" y2="165" stroke="#30363d" stroke-width="1"/>
+
+  <text x="295" y="182" class="method">ReadFile()</text>
+  <text x="295" y="196" class="desc">Read file contents by path</text>
+  <text x="295" y="208" class="desc">Returns: content string or error</text>
+
+  <!-- Animated write bar -->
+  <rect x="490" y="130" width="15" height="0" fill="#a78bfa" opacity="0.5" rx="2">
+    <animate attributeName="height" values="0;30;30;50;50;0" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="y" values="180;150;150;130;130;180" dur="3s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- PipelineService -->
+  <rect x="540" y="55" width="240" height="175" rx="10" fill="url(#sg3)" stroke="#f59e0b" stroke-width="2" class="glow"/>
+  <text x="660" y="80" class="svc-title">PipelineService</text>
+  <rect x="612" y="84" width="97" height="14" rx="4" fill="#f59e0b"/>
+  <text x="660" y="95" class="badge">ORCHESTRATOR</text>
+
+  <text x="555" y="118" class="method">RunPipeline()</text>
+  <text x="555" y="132" class="desc">Full orchestration:</text>
+  <text x="555" y="144" class="desc">  1. Load task from kanban DB</text>
+  <text x="555" y="156" class="desc">  2. Run inference (ollama)</text>
+  <text x="555" y="168" class="desc">  3. Write output file</text>
+  <text x="555" y="180" class="desc">  4. Stream status events</text>
+
+  <line x1="555" y1="189" x2="765" y2="189" stroke="#30363d" stroke-width="1"/>
+
+  <text x="555" y="206" class="method">HealthCheck()</text>
+  <text x="555" y="220" class="desc">Ollama + DB + uptime status</text>
+  <!-- Heartbeat dot -->
+  <circle cx="755" cy="210" r="6" fill="#22c55e" opacity="0.8" class="hb"/>
+
+  <!-- Proto Messages Section -->
+  <rect x="20" y="260" width="760" height="170" rx="10" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <text x="400" y="285" fill="#58a6ff" font-size="13" text-anchor="middle" font-weight="bold">Protobuf Messages</text>
+
+  <!-- Message boxes -->
+  <rect x="35" y="300" width="165" height="55" rx="6" fill="#1a2744" stroke="#3b82f6" stroke-width="1"/>
+  <text x="117" y="318" fill="#60a5fa" font-size="10" text-anchor="middle" font-weight="bold">InferenceRequest</text>
+  <text x="45" y="332" fill="#8b949e" font-size="8">prompt, model, system_prompt</text>
+  <text x="45" y="344" fill="#8b949e" font-size="8">num_thread, temperature</text>
+
+  <rect x="215" y="300" width="130" height="55" rx="6" fill="#1a2744" stroke="#3b82f6" stroke-width="1"/>
+  <text x="280" y="318" fill="#60a5fa" font-size="10" text-anchor="middle" font-weight="bold">InferenceChunk</text>
+  <text x="225" y="332" fill="#8b949e" font-size="8">token: string</text>
+  <text x="225" y="344" fill="#8b949e" font-size="8">done: bool</text>
+
+  <rect x="360" y="300" width="130" height="55" rx="6" fill="#1a2744" stroke="#3b82f6" stroke-width="1"/>
+  <text x="425" y="318" fill="#60a5fa" font-size="10" text-anchor="middle" font-weight="bold">FileSpec</text>
+  <text x="370" y="332" fill="#8b949e" font-size="8">path, content, mode</text>
+  <text x="370" y="344" fill="#8b949e" font-size="8">append: bool</text>
+
+  <rect x="505" y="300" width="130" height="55" rx="6" fill="#1a2744" stroke="#3b82f6" stroke-width="1"/>
+  <text x="570" y="318" fill="#60a5fa" font-size="10" text-anchor="middle" font-weight="bold">PipelineEvent</text>
+  <text x="515" y="332" fill="#8b949e" font-size="8">type: EventType</text>
+  <text x="515" y="344" fill="#8b949e" font-size="8">message, elapsed_sec</text>
+
+  <rect x="650" y="300" width="115" height="55" rx="6" fill="#1a2744" stroke="#3b82f6" stroke-width="1"/>
+  <text x="707" y="318" fill="#60a5fa" font-size="10" text-anchor="middle" font-weight="bold">HealthResponse</text>
+  <text x="660" y="332" fill="#8b949e" font-size="8">ok, ollama, db</text>
+  <text x="660" y="344" fill="#8b949e" font-size="8">uptime, model, info</text>
+
+  <!-- Event types -->
+  <text x="35" y="385" fill="#8b949e" font-size="9">EventType:</text>
+  <rect x="105" y="375" width="62" height="14" rx="3" fill="#22c55e"/><text x="136" y="385" class="badge">STARTED</text>
+  <rect x="175" y="375" width="62" height="14" rx="3" fill="#3b82f6"/><text x="206" y="385" class="badge">TOKEN</text>
+  <rect x="245" y="375" width="62" height="14" rx="3" fill="#a78bfa"/><text x="276" y="385" class="badge">DONE</text>
+  <rect x="315" y="375" width="75" height="14" rx="3" fill="#f59e0b"/><text x="352" y="385" class="badge">FILE_WRITTEN</text>
+  <rect x="398" y="375" width="72" height="14" rx="3" fill="#22c55e"/><text x="434" y="385" class="badge">COMPLETED</text>
+  <rect x="478" y="375" width="52" height="14" rx="3" fill="#ef4444"/><text x="504" y="385" class="badge">ERROR</text>
+
+  <text x="400" y="435" fill="#484f58" font-size="9" text-anchor="middle">pipeline.proto | Python 3.12 | grpcio 1.78 | protobuf binary serialization</text>
+</svg>
