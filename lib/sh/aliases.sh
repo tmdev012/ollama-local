@@ -243,3 +243,4 @@ mcp-help() {
     echo "  Navigation:"
     echo "    cds / cdp / cdk / cdc   Jump to repos"
 }
+alias o8b='~/ollama-local/scripts/ollama-8b.sh'

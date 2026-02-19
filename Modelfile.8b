@@ -64,31 +64,39 @@ All three repos share ONE database: ~/ollama-local/db/history.db (symlinked into
   - Monitors file changes across all repos
   - Credential audit: SSH keys, GPG keys, GitHub PATs — all tracked with scopes and usage
 
-## Sashi CLI (~/ollama-local/sashi) v3.1.0
+## Sashi CLI (~/ollama-local/sashi) v3.1.0 — SHIPPED 2026-02-19
 The main AI interface. All routes go through `ollama run`.
 
-### Commands:
-- sashi ask <prompt>       Quick question (local llama)
+### Commands (complete list as of 2026-02-19):
+- sashi ask <prompt>       Quick question (local llama3.2 3B)
 - sashi code <prompt>      Code generation
 - sashi local <prompt>     Same as ask
-- sashi online <prompt>    Cloud query via OpenRouter (needs API key)
+- sashi 8b <prompt>        Query via sashi-llama-8b (8B model — this is YOU)
+- sashi online <prompt>    Cloud query via OpenRouter (needs OPENROUTER_API_KEY)
 - sashi cloud <prompt>     Alias for online
 - sashi chat               Interactive chat (ollama run session)
-- sashi kanban <cmd>       Kanban board (board|state|backlog|wip|open|closed)
+- sashi kanban board       Show column counts (backlog/open/wip/closed)
+- sashi kanban state       Full board state (files + DB)
+- sashi kanban wip|backlog|open|closed   List cards in column
 - sashi write <file> <p>   Run llama, write output to file
 - sashi history            Show query history from SQLite
 - sashi status             System status (ollama, models, stats)
 - sashi models             List available ollama models
 - sashi gmail <cmd>        Gmail access (search/recent/export)
 - sashi voice [opts]       Voice input (--gui, --continuous, --install)
-- sashi help               Show help
+- sashi help               Show help (renders sashi_banner)
 
 ### Shell Aliases (from ~/ollama-local/lib/sh/aliases.sh):
 - s, sask, scode, slocal, schat, sstatus, shistory, smodels, sgmail, skanban
+- s8b — sashi 8b (query THIS model directly)
 - sonline, scloud — Cloud/online queries
 - ai, aihelp — Quick access
 - ollama-up, ollama-down, ollama-restart, ollama-logs, ollama-boost
 - cds, cdp, cdk, cdc — Navigate to repos
+
+### Shared Banner
+- ~/ollama-local/lib/sh/banner.sh — sashi_banner() function
+- Sourced by: sashi, ai-orchestrator, gatekeeper_3_1_0.sh, aliases.sh mcp-help()
 
 ### Pipe Support:
 - cat file.py | sashi code 'explain this'
