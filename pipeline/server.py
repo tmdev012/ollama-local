@@ -14,6 +14,7 @@ DB Optimizations (O(log n) via B-tree indexes):
 
 import grpc
 import hashlib
+import json
 import os
 import socket
 import sys
@@ -23,6 +24,8 @@ import shutil
 import sqlite3
 import signal
 import threading
+import urllib.request
+import urllib.error
 from concurrent import futures
 from pathlib import Path
 
@@ -162,10 +165,34 @@ def log_query(model, prompt, response_length, duration_ms):
 # Inference Service
 # ============================================================
 
+def ollama_generate_stream(prompt, model, system_prompt=''):
+    """Call ollama /api/generate with stream:true. Yields (token, done) tuples.
+    Uses HTTP streaming (NDJSON) — no terminal control chars, no subprocess."""
+    api = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
+    payload = json.dumps({
+        'model': model,
+        'prompt': prompt,
+        'system': system_prompt,
+        'stream': True,
+        'options': {'num_thread': DEFAULT_THREADS},
+    }).encode()
+    req = urllib.request.Request(
+        f'{api}/api/generate',
+        data=payload,
+        headers={'Content-Type': 'application/json'},
+    )
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        for line in resp:
+            if not line.strip():
+                continue
+            chunk = json.loads(line)
+            yield chunk.get('response', ''), chunk.get('done', False)
+
+
 class InferenceServicer(pipeline_pb2_grpc.InferenceServiceServicer):
 
     def RunInference(self, request, context):
-        """Stream tokens from ollama run. Cache hit returns instantly."""
+        """Stream tokens via ollama HTTP API. Cache hit returns instantly."""
         model = request.model or get_model()
         prompt = request.prompt
         if not prompt:
@@ -173,29 +200,22 @@ class InferenceServicer(pipeline_pb2_grpc.InferenceServiceServicer):
             context.set_details('prompt is required')
             return
 
-        # O(log n) cache check before spawning subprocess
+        # O(log n) cache check before calling API
         cached = cache_lookup(prompt, model)
         if cached:
             yield pipeline_pb2.InferenceChunk(token=cached, done=False)
             yield pipeline_pb2.InferenceChunk(token='', done=True)
             return
 
-        num_thread = request.num_thread or DEFAULT_THREADS
-        cmd = ['ollama', 'run', model, prompt]
-        env = os.environ.copy()
-        env['OLLAMA_NUM_THREADS'] = str(num_thread)
-
         t0 = time.time()
         full_text = []
         try:
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True, bufsize=1, env=env
-            )
-            for line in proc.stdout:
-                full_text.append(line)
-                yield pipeline_pb2.InferenceChunk(token=line, done=False)
-            proc.wait()
+            for token, done in ollama_generate_stream(prompt, model, request.system_prompt):
+                if token:
+                    full_text.append(token)
+                    yield pipeline_pb2.InferenceChunk(token=token, done=False)
+                if done:
+                    break
             yield pipeline_pb2.InferenceChunk(token='', done=True)
 
             # Store in cache + log
@@ -225,18 +245,17 @@ class InferenceServicer(pipeline_pb2_grpc.InferenceServiceServicer):
                 token_count=len(cached.split())
             )
 
-        num_thread = request.num_thread or DEFAULT_THREADS
-        cmd = ['ollama', 'run', model, prompt]
-        env = os.environ.copy()
-        env['OLLAMA_NUM_THREADS'] = str(num_thread)
-
         t0 = time.time()
+        full_text = []
         try:
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=120, env=env
-            )
+            for token, done in ollama_generate_stream(prompt, model, request.system_prompt):
+                if token:
+                    full_text.append(token)
+                if done:
+                    break
+
             elapsed = time.time() - t0
-            text = result.stdout.strip()
+            text = ''.join(full_text).strip()
             tokens = len(text.split())
 
             # Store in cache + log
@@ -248,9 +267,9 @@ class InferenceServicer(pipeline_pb2_grpc.InferenceServiceServicer):
                 duration_sec=elapsed,
                 token_count=tokens
             )
-        except subprocess.TimeoutExpired:
-            context.set_code(grpc.StatusCode.DEADLINE_EXCEEDED)
-            context.set_details('inference timed out after 120s')
+        except urllib.error.URLError as e:
+            context.set_code(grpc.StatusCode.UNAVAILABLE)
+            context.set_details(f'ollama API unreachable: {e}')
             return pipeline_pb2.InferenceResponse()
         except Exception as e:
             context.set_code(grpc.StatusCode.INTERNAL)
@@ -379,30 +398,30 @@ class PipelineServicer(pipeline_pb2_grpc.PipelineServiceServicer):
             )
             return
 
-        # Run inference
+        # Run inference via HTTP streaming API
         model = request.model or get_model()
-        cmd = ['ollama', 'run', model, prompt]
-        env = os.environ.copy()
-        env['OLLAMA_NUM_THREADS'] = str(DEFAULT_THREADS)
 
         try:
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True, bufsize=1, env=env
-            )
             full_output = []
-            for line in proc.stdout:
-                full_output.append(line)
-                yield pipeline_pb2.PipelineEvent(
-                    type=pipeline_pb2.PipelineEvent.INFERENCE_TOKEN,
-                    message=line.rstrip('\n'),
-                    elapsed_sec=time.time() - t0
-                )
-            proc.wait()
+            for token, done in ollama_generate_stream(prompt, model):
+                if token:
+                    full_output.append(token)
+                    yield pipeline_pb2.PipelineEvent(
+                        type=pipeline_pb2.PipelineEvent.INFERENCE_TOKEN,
+                        message=token,
+                        elapsed_sec=time.time() - t0
+                    )
+                if done:
+                    break
+
+            elapsed_ms = (time.time() - t0) * 1000
+            output_text = ''.join(full_output)
+            cache_store(prompt, model, output_text)
+            log_query(model, prompt, len(output_text), elapsed_ms)
 
             yield pipeline_pb2.PipelineEvent(
                 type=pipeline_pb2.PipelineEvent.INFERENCE_DONE,
-                message=f'Inference complete ({len(full_output)} lines)',
+                message=f'Inference complete ({len(output_text)} bytes)',
                 elapsed_sec=time.time() - t0
             )
         except Exception as e:

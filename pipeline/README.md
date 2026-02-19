@@ -133,6 +133,12 @@ mcp/pipeline/
 
 ---
 
+## BDPM: Production Swimlane
+
+This gRPC pipeline implements the **Production** layer of the BDPM governance model: `gRPC Dispatch → Ollama Inference → File Write → DB Log`. See the full 4-layer swimlane diagram at [`kanban-pmo/docs/diagrams/bdpm-swimlanes.svg`](../../kanban-pmo/docs/diagrams/bdpm-swimlanes.svg).
+
+---
+
 ## Architecture: The Big Picture
 
 ```

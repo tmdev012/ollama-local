@@ -3,7 +3,7 @@
 > Local-first AI assistant powered by Ollama/Llama. Privacy-first, no data leaves your machine. Runs on modest hardware (i7, 8GB RAM, no GPU). Optional cloud fallback via OpenRouter.
 
 [![GitHub](https://img.shields.io/badge/GitHub-tmdev012%2Follama--local-blue)](https://github.com/tmdev012/ollama-local)
-[![Version](https://img.shields.io/badge/version-3.1.0-green)]()
+[![Version](https://img.shields.io/badge/version-3.0.0-green)]()
 [![License](https://img.shields.io/badge/license-MIT-yellow)]()
 
 ---
@@ -37,7 +37,7 @@ SASHI routes all queries through `ollama run` (native CLI, streaming, model stay
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     SASHI v3.1.0                             │
+│                     SASHI v3.0.0                             │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
 │  │ Router  │→ │ Logger  │→ │ History │→ │ Output  │        │
 │  └─────────┘  └─────────┘  └─────────┘  └─────────┘        │
@@ -97,8 +97,8 @@ OVR
 sudo systemctl daemon-reload && sudo systemctl restart ollama
 
 # 3. Build optimized models (no sudo)
+ollama create fast-sashi -f ~/ollama-local/Modelfile.fast
 ollama create sashi-llama -f ~/ollama-local/Modelfile.system
-ollama create sashi-llama-8b -f ~/ollama-local/Modelfile.8b
 ```
 
 ### Benchmark Proof
@@ -127,15 +127,25 @@ The bottleneck is memory bandwidth, not CPU clock. This is the ceiling for this 
 
 ## Architecture
 
+### BDPM Governance Layer (v3.1.0)
+
+The 4-layer BDPM governance model spans both repos. See the full swimlane diagram in [`kanban-pmo/docs/diagrams/bdpm-swimlanes.svg`](../kanban-pmo/docs/diagrams/bdpm-swimlanes.svg):
+
+- **Business** — kanban-pmo intake, sprint planning, milestone gates
+- **Development** — git push, model build, test verify, smart-push (this repo)
+- **Production** — gRPC pipeline dispatch, ollama inference, file write, DB log (this repo)
+- **Monitoring** — cred audit, health check, doc sync, CMMI compliance
+
 ### Directory Structure
 
 ```
 ollama-local/
-├── sashi                    # Main CLI (v3.1.0)
+├── sashi                    # Main CLI (v3.0.0)
 ├── .env                     # Config (LOCAL_MODEL, OLLAMA_HOST)
 ├── .env.termux              # Termux override (llama3.2:1b)
-├── Modelfile.system         # 3B model config (num_thread 2, system prompt)
-├── Modelfile.8b             # 8B model config (num_thread 2, system prompt)
+├── Modelfile.fast            # 3B fast model (concise system prompt, default)
+├── Modelfile.system         # 3B full model config (comprehensive system prompt)
+├── Modelfile.8b             # 8B model config (num_thread 2, system prompt) [archived]
 ├── install.sh               # One-command installer
 ├── docker-compose.yml       # Container orchestration
 │
@@ -168,25 +178,28 @@ ollama-local/
 
 | Model | Params | Size | Speed | Modelfile | Use Case |
 |-------|--------|------|-------|-----------|----------|
-| **sashi-llama** | 3B | 2.0GB | 4.0 tok/s | `Modelfile.system` | Default — fast, fits in RAM |
-| **sashi-llama-8b** | 8B | 4.9GB | 3.7 tok/s | `Modelfile.8b` | Desktop — better quality, needs swap |
+| **fast-sashi** | 3B | 2.0GB | 4.0 tok/s | `Modelfile.fast` | **Default** — concise, date-aware |
+| **sashi-llama** | 3B | 2.0GB | 4.0 tok/s | `Modelfile.system` | Full system prompt, verbose context |
+| **sashi-llama-8b** | 8B | 4.9GB | 3.7 tok/s | `Modelfile.8b` | Better quality, needs swap |
 | llama3.2:1b | 1B | 1.3GB | fast | (base) | Termux/mobile — lightweight |
 
 ### Model Selection
 
 ```bash
-# Desktop default (3B, fast)
+# Desktop default (fast-sashi, 3B, concise)
 sashi ask "explain TCP"
 
+# Full context model (bigger system prompt)
+ollama run sashi-llama "explain TCP in detail"
+
 # Switch to 8B for quality (edit .env: LOCAL_MODEL=sashi-llama-8b)
-# Or one-off:
 ollama run sashi-llama-8b "explain TCP in detail"
 
 # Termux auto-detects and uses 1B
 # (handled by .env.termux override)
 ```
 
-Both custom models include a full system prompt with hardware profile, file layout, aliases, and tool knowledge. The model knows about THIS machine.
+All custom models include system prompts with date awareness. The default `fast-sashi` is concise; `sashi-llama` has full hardware/file/alias context.
 
 ---
 
@@ -199,6 +212,7 @@ Both custom models include a full system prompt with hardware profile, file layo
 | **Core** | sashi | CLI | Main router and interface |
 | **Model** | llama | Local | Llama 3.2/3.1 via Ollama — primary |
 | **Model** | claude | Integration | Claude Code CLI — complex tasks |
+| **Automation** | pipeline | gRPC | Inference + file write + orchestration |
 | **Protocol** | voice | Input | Google Speech-to-Text |
 | **Protocol** | gmail | Context | Gmail API for email data |
 
@@ -225,9 +239,10 @@ sudo systemctl enable --now ollama
 git clone git@github.com:tmdev012/ollama-local.git ~/ollama-local
 cd ~/ollama-local
 
-# 3. Pull base model + build optimized custom model
+# 3. Pull base model + build optimized custom models
 ollama pull llama3.2
-ollama create sashi-llama -f Modelfile.system
+ollama create fast-sashi -f Modelfile.fast         # Default (concise, date-aware)
+ollama create sashi-llama -f Modelfile.system       # Full system context
 
 # 4. (Optional) 8B model — needs 8GB+ swap
 ollama pull llama3.1:8b
@@ -309,18 +324,18 @@ gissue 42              # Find commits by issue number
 | v1.0 | 2026-02 | Initial CLI, `ollama run` calls |
 | v2.0 | 2026-02-05 | HTTP API optimization, 5-8s→2.2s, voice, 22 clean aliases |
 | v3.0 | 2026-02-08 | Back to `ollama run` (streams, keeps model hot), DeepSeek removed |
-| **v3.1** | **2026-02-10** | **8B model, num_thread tuning, Termux support, perf benchmarks** |
+| v3.1 | 2026-02-10 | 8B model, num_thread tuning, Termux support, perf benchmarks |
+| **v3.2** | **2026-02-17** | **fast-sashi default, date injection, ai-orchestrator v2, context drift fixes** |
 
-### v3.0→v3.1 Changes
+### v3.1→v3.2 Changes
 
-| Aspect | v3.0 | v3.1 |
+| Aspect | v3.1 | v3.2 |
 |--------|------|------|
-| **Models** | 3B only | 3B + **8B** (via swap) |
-| **num_thread** | auto | **2** (proven 30% faster than 4) |
-| **Ollama tuning** | defaults | KEEP_ALIVE=30m, MAX_LOADED=1 |
-| **Mobile** | not supported | **Termux auto-detect** |
-| **Monetization** | none | 3-tier playbook |
-| **Benchmarks** | not measured | **3 rounds, documented** |
+| **Default model** | sashi-llama | **fast-sashi** (concise, date-aware) |
+| **Date awareness** | none (hallucinated 2023) | **[Today: YYYY-MM-DD]** injected at query time |
+| **ai-orchestrator** | hardcoded llama3.2, no .env | **v2.0**: reads .env, logs to DB, date injection |
+| **Context drift** | model confused audio/image panning | System prompt anchors domain context |
+| **Models** | 3B + 8B | 3B (fast-sashi, sashi-llama) + 8B + turbo-llama, fast-llama |
 
 ---
 
@@ -467,9 +482,9 @@ CREATE INDEX idx_commits_timestamp ON commits(timestamp);
 | Alias | Command | Description |
 |-------|---------|-------------|
 | `s` | `sashi` | Main interface |
-| `sask` | `sashi ask` | Quick question (DeepSeek) |
-| `scode` | `sashi code` | Code help (DeepSeek) |
-| `slocal` | `sashi local` | Offline (Llama) |
+| `sask` | `sashi ask` | Quick question (local llama) |
+| `scode` | `sashi code` | Code help (local llama) |
+| `slocal` | `sashi local` | Same as ask |
 | `schat` | `sashi chat` | Interactive chat |
 | `sstatus` | `sashi status` | System status |
 | `smodels` | `sashi models` | List models |
@@ -706,7 +721,7 @@ Duration:          ~10 hours
 
 ### Key Accomplishments
 
-1. **MCP Architecture** - 6 modules (claude, deepseek, llama, voice, gmail, core)
+1. **MCP Architecture** - 5 modules (claude, llama, voice, gmail, pipeline)
 2. **SASHI v2.0** - HTTP API optimization (5-8s → 2.2s)
 3. **Voice Input** - CLI + GUI with Google Speech-to-Text
 4. **Smart Push** - Auto-categorization, versioning, SQLite tracking
@@ -749,4 +764,4 @@ MIT
 
 ---
 
-*Built with Claude Code CLI - Feb 2026*
+*Built with Claude Code CLI - Feb 2026 | Last updated: 2026-02-17*
