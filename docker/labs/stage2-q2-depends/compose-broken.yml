@@ -1,0 +1,8 @@
+version: "3.8"
+services:
+  slow-server:
+    image: alpine
+    command: ["sh", "-c", "echo 'server: sleeping 5s...' && sleep 5 && echo 'server: READY' && sleep 999"]
+  client-broken:
+    image: alpine
+    command: ["sh", "-c", "sleep 1 && ping -c 1 slow-server && echo 'GOT RESPONSE' || echo 'FAILED - server not ready'"]

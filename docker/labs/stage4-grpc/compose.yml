@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  grpc-server:
+    build:
+      context: ./server
+    container_name: grpc-server
+
+  grpc-client:
+    build:
+      context: ./client
+    container_name: grpc-client
+    depends_on:
+      - grpc-server

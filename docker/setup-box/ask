@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+# ask — query llama3.2 from inside setup-box
+# Usage: ask "how do I sign an APK with debug keystore?"
+#        ask "adb install fails with INSTALL_FAILED_UPDATE_INCOMPATIBLE"
+set -e
+[[ -z "$1" ]] && { echo "Usage: ask \"your question\""; exit 1; }
+ollama run llama3.2 "$*"

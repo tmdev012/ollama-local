@@ -1,0 +1,32 @@
+version: "3.8"
+
+# QUESTION: Why does http://ollama:11434 work inside setup-box?
+# ANSWER: Docker runs internal DNS on every bridge network.
+#         Service name = hostname. Prove it below.
+#
+# RUN:  docker compose up -d
+#       docker compose logs caller
+# WHAT YOU SEE: caller pings "server" by name — no IP, no config
+
+services:
+  server:
+    image: alpine
+    container_name: dns-server
+    command: sh -c "echo 'server ready' && sleep 999"
+
+  caller:
+    image: alpine
+    container_name: dns-caller
+    depends_on: [server]
+    # ping "server" — Docker DNS resolves it to the container's internal IP
+    command: >
+      sh -c "
+        echo '── What IP does Docker assign to server? ──' &&
+        nslookup server &&
+        echo '' &&
+        echo '── Can we reach it by name? ──' &&
+        ping -c 3 server &&
+        echo '' &&
+        echo '── PROOF: name resolved without /etc/hosts entry ──' &&
+        grep server /etc/hosts || echo 'server is NOT in /etc/hosts — pure DNS'
+      "

@@ -1,0 +1,41 @@
+version: "3.8"
+
+# QUESTION: What is the difference between expose and ports?
+# ANSWER:
+#   expose → container-to-container only. Host cannot reach it.
+#   ports  → punches through to host. curl localhost:XXXX works.
+#
+# RUN: bash run.sh
+
+services:
+  # expose only — reachable by other containers, NOT from host
+  svc-expose:
+    image: python:3.11-alpine
+    container_name: q3-expose
+    expose:
+      - "8001"
+    command: python3 -m http.server 8001
+
+  # ports mapped — reachable from host AND other containers
+  svc-ports:
+    image: python:3.11-alpine
+    container_name: q3-ports
+    ports:
+      - "8002:8002"   # host:container
+    command: python3 -m http.server 8002
+
+  # tester — runs inside Docker network, tries both
+  tester:
+    image: alpine
+    container_name: q3-tester
+    depends_on: [svc-expose, svc-ports]
+    command: >
+      sh -c "
+        apk add -q curl &&
+        sleep 2 &&
+        echo '── From INSIDE Docker network ──' &&
+        echo -n 'svc-expose (expose only): ' &&
+        curl -s -o /dev/null -w '%{http_code}' http://svc-expose:8001 && echo ' ← works (same network)' &&
+        echo -n 'svc-ports  (ports mapped): ' &&
+        curl -s -o /dev/null -w '%{http_code}' http://svc-ports:8002 && echo ' ← works (same network)'
+      "

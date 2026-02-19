@@ -1,0 +1,60 @@
+# Docker Compose — setup-box + ollama (llama3.2)
+# Usage:
+#   docker compose up -d
+#   docker exec -it setup-box zsh
+#   docker exec -it setup-box sashi "how do I sign an APK?"
+
+name: setup-box
+
+services:
+
+  # ── ollama — llama3.2 is the AI brain, no Claude dependency ──────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama        # persist downloaded models
+    ports:
+      - "11434:11434"
+    # Pull llama3.2 on first start
+    entrypoint: >
+      sh -c "ollama serve &
+             sleep 5 &&
+             ollama pull llama3.2 &&
+             wait"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ── setup-box — all dev tooling (Android SDK, ADB, iOS, sashi) ───
+  setup-box:
+    build:
+      context: ../..          # repo root (so COPY ../../sashi works)
+      dockerfile: docker/setup-box/Dockerfile
+    container_name: setup-box
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - LOCAL_MODEL=llama3.2
+    volumes:
+      - ~/android-hello:/workspace/android-hello   # your Kotlin project
+      - ~/Android/Sdk:/opt/android/sdk             # reuse host SDK cache
+      - ~/iOS:/opt/ios                             # iOS ipa/mnt/logs
+      - /dev/bus/usb:/dev/bus/usb                  # ADB USB passthrough
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    privileged: true          # needed for ADB USB + ifuse
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    command: zsh
+
+volumes:
+  ollama-models:
+    name: ollama-models        # survives container rebuilds

@@ -1,0 +1,47 @@
+name: lab-q2-depends
+
+# QUESTION: What breaks if you remove depends_on?
+# ANSWER:   Race condition. Client starts before server is ready.
+#           depends_on + healthcheck = guaranteed order.
+#
+# RUN:      bash run.sh
+# WHAT YOU SEE: broken run first (race), then fixed run (healthcheck)
+
+services:
+  slow-server:
+    image: alpine
+    container_name: q2-server
+    # simulates a slow-starting service (like ollama pulling a model)
+    command: sh -c "echo 'server: sleeping 5s before ready...' && sleep 5 && echo 'server: NOW READY' && sleep 999"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ps aux | grep sleep | grep -v grep"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 1s
+
+  # BROKEN: no depends_on — hits server before it's ready
+  client-broken:
+    image: alpine
+    container_name: q2-client-broken
+    profiles: [broken]   # only runs in 'broken' profile
+    command: >
+      sh -c "
+        echo 'client: connecting immediately (no depends_on)...' &&
+        sleep 1 &&
+        ping -c 1 slow-server && echo 'GOT RESPONSE' || echo 'FAILED — server not ready'
+      "
+
+  # FIXED: depends_on with healthcheck — waits for server readiness
+  client-fixed:
+    image: alpine
+    container_name: q2-client-fixed
+    profiles: [fixed]    # only runs in 'fixed' profile
+    depends_on:
+      slow-server:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'client: server confirmed healthy before I started' &&
+        ping -c 1 slow-server && echo 'GOT RESPONSE — race condition eliminated'
+      "

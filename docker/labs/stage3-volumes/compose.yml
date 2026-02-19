@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+
+  # STEP 1: write a file into a named volume
+  writer:
+    image: alpine
+    volumes:
+      - testdata:/data
+    command: ["sh", "-c", "echo 'hello from named volume' > /data/proof.txt && echo 'writer: wrote proof.txt'"]
+
+  # STEP 2: different container, same volume — reads what writer left
+  reader:
+    image: alpine
+    volumes:
+      - testdata:/data
+    depends_on:
+      - writer
+    command: ["sh", "-c", "sleep 1 && echo 'reader:' && cat /data/proof.txt"]
+
+  # STEP 3: bind mount — maps host directory directly into container
+  bind-demo:
+    image: alpine
+    volumes:
+      - ./host-dir:/mnt/host   # host path : container path
+    command: ["sh", "-c", "echo 'written from container' > /mnt/host/fromcontainer.txt && ls /mnt/host"]
+
+volumes:
+  testdata:
+    name: stage3-testdata
