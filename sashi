@@ -7,8 +7,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/.env" 2>/dev/null || true
 # Termux override: use lighter model on Android
 [[ -n "$TERMUX_VERSION" || -d "/data/data/com.termux" ]] && source "$SCRIPT_DIR/.env.termux" 2>/dev/null || true
+source "$SCRIPT_DIR/lib/sh/banner.sh" 2>/dev/null || true
 
-VERSION="3.0.0"
+VERSION="3.1.0"
 DB_PATH="${SASHI_DB:-$SCRIPT_DIR/db/history.db}"
 MODEL="${LOCAL_MODEL:-llama3.2}"
 OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
@@ -26,6 +27,7 @@ check_ollama() {
 }
 
 show_help() {
+    sashi_banner 2>/dev/null || true
     cat << EOF
 $(echo -e "${BLUE}SASHI${NC}") v$VERSION - Local-first AI (llama3.2 via ollama run)
 
@@ -43,6 +45,9 @@ Commands:
   models            List available models
   gmail <cmd>       Gmail access (search/recent/export)
   voice [opts]      Voice input (--gui, --continuous)
+  8b <prompt>       Query via sashi-llama-8b (8B model, better quality)
+  kanban [board|state|backlog|open|wip|closed]  Kanban board
+  write <file> <prompt>  Run llama, write output to file
   help              Show this help
 
 Pipe support:
@@ -72,7 +77,7 @@ PYEOF
 # Core query function - uses ollama run (proven fast on low-end hardware)
 # ollama run streams tokens natively + keeps model loaded in memory
 llama_query() {
-    local prompt="$1"
+    local prompt="[Today: $(date +%Y-%m-%d)] $1"
     local start_time=$(date +%s%3N)
 
     if ! check_ollama; then
@@ -298,6 +303,59 @@ case "${1:-help}" in
     help|--help|-h)
         show_help
         ;;
+        8b)
+            shift
+            prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"
+            [ -z "$prompt" ] && { echo "Usage: sashi 8b <prompt>"; exit 1; }
+            prompt="[Today: $(date +%Y-%m-%d)] $prompt"
+            if ! check_ollama; then
+                echo -e "${RED}Ollama not running. Start with: ollama-up${NC}"
+                exit 1
+            fi
+            ollama run sashi-llama-8b "$prompt"
+            ;;
+        kanban)
+            shift
+            subcmd="${1:-board}"
+            shift || true
+            KANBAN_DIR="$HOME/kanban-pmo/kanban"
+            case "$subcmd" in
+                board)
+                    echo "=== Kanban Board ==="
+                    for col in backlog open wip closed; do
+                        count=$(ls "$KANBAN_DIR/$col/"*.md 2>/dev/null | wc -l)
+                        printf "  %-10s %s cards\n" "$col" "$count"
+                    done
+                    ;;
+                state)
+                    echo "=== Kanban State ==="
+                    for col in backlog open wip closed; do
+                        echo "[$col]"
+                        ls "$KANBAN_DIR/$col/"*.md 2>/dev/null | xargs -I{} basename {} .md | sed 's/^/  /'
+                    done
+                    echo "=== DB ==="
+                    sqlite3 "$DB_PATH" "SELECT COUNT(*) || ' history rows'" 2>/dev/null || echo "  DB not available"
+                    ;;
+                backlog|open|wip|closed)
+                    echo "=== $subcmd ==="
+                    for f in "$KANBAN_DIR/$subcmd/"*.md; do
+                        [[ -f "$f" ]] && basename "$f" .md | sed 's/^/  /'
+                    done
+                    ;;
+                *)
+                    echo "Usage: sashi kanban [board|state|backlog|open|wip|closed]"
+                    ;;
+            esac
+            ;;
+        write)
+            shift
+            outfile="$1"; shift
+            prompt="$*"
+            [[ -z "$outfile" || -z "$prompt" ]] && { echo "Usage: sashi write <file> <prompt>"; exit 1; }
+            echo "Writing to $outfile..."
+            ollama run "$MODEL" "$prompt" > "$outfile"
+            echo "Done: $outfile ($(wc -l < "$outfile") lines)"
+            ;;
     *)
         prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"
         [ -z "$prompt" ] && { show_help; exit 1; }
