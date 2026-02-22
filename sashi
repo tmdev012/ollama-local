@@ -48,7 +48,8 @@ Commands:
   8b <prompt>       Query via sashi-llama-8b (8B model, better quality)
   kanban [board|state|backlog|open|wip|closed]  Kanban board
   write <file> <prompt>  Run llama, write output to file
-  probe [sync|write|status]  ProbeSync gRPC bridge (kanban-pmo :50051)
+  probe [sync|list|recommend|export|write|status]  gRPC probe commands
+  grpc  [start|stop|status|restart]  Manage gRPC server daemons
   help              Show this help
 
 Pipe support:
@@ -142,6 +143,20 @@ except: pass' 2>/dev/null)
     log_query "openrouter:$model" "$prompt" "0" "$duration"
 }
 
+_grpc_pid_check() {
+    local name="$1" port="$2" pidfile="$3"
+    if [ -f "$pidfile" ]; then
+        local pid
+        pid=$(cat "$pidfile" 2>/dev/null)
+        if kill -0 "$pid" 2>/dev/null; then
+            echo -e "  $name  ${GREEN}running${NC}  pid=$pid  :$port"
+            return 0
+        fi
+    fi
+    echo -e "  $name  ${RED}stopped${NC}  :$port"
+    return 1
+}
+
 show_status() {
     echo -e "${BLUE}SASHI System Status${NC} v$VERSION"
     echo "===================="
@@ -166,6 +181,11 @@ show_status() {
     else
         echo -e "Env:       Linux ($(uname -m))"
     fi
+
+    echo ""
+    echo "gRPC Servers:"
+    _grpc_pid_check "kanban-pmo" 50051 "/tmp/sashi-grpc-kanban.pid"
+    _grpc_pid_check "probe     " 50052 "/tmp/sashi-grpc-probe.pid"
 
     echo ""
     echo "Local Models:"
@@ -423,8 +443,137 @@ except grpc.FutureTimeoutError:
     sys.exit(1)
 PYEOF
                     ;;
+                list)
+                    # List repos tracked by probe server :50052
+                    python3 - "$GRPC_PORT" "$GENERATED_DIR" << 'PYEOF'
+import sys
+sys.path.insert(0, '/home/' + __import__('os').environ['USER'] + '/persist-memory-probe/webhooks/grpc/generated')
+import grpc, probe_pb2, probe_pb2_grpc
+ch = grpc.insecure_channel('localhost:50052')
+try:
+    grpc.channel_ready_future(ch).result(timeout=2)
+except grpc.FutureTimeoutError:
+    print('probe server not running on :50052', file=sys.stderr); sys.exit(1)
+resp = probe_pb2_grpc.RepoServiceStub(ch).ListRepos(probe_pb2.Empty(), timeout=15)
+for r in resp.repos:
+    flag = '!' if r.uncommitted else ' '
+    print(f"  {flag} {r.name:<25s} {r.branch:<12s} uncommitted={r.uncommitted}")
+PYEOF
+                    ;;
+                recommend)
+                    op="${*:-push code}"
+                    python3 - "$op" << 'PYEOF'
+import sys
+sys.path.insert(0, '/home/' + __import__('os').environ['USER'] + '/persist-memory-probe/webhooks/grpc/generated')
+import grpc, probe_pb2, probe_pb2_grpc
+ch = grpc.insecure_channel('localhost:50052')
+try:
+    grpc.channel_ready_future(ch).result(timeout=2)
+except grpc.FutureTimeoutError:
+    print('probe server not running on :50052', file=sys.stderr); sys.exit(1)
+op = ' '.join(sys.argv[1:]) if len(sys.argv) > 1 else 'push code'
+rec = probe_pb2_grpc.CredentialServiceStub(ch).GetRecommendation(
+        probe_pb2.OperationRequest(operation=op), timeout=5)
+print(f"type:    {rec.credential_type}")
+print(f"reason:  {rec.reason}")
+print(f"example: {rec.example_command}")
+PYEOF
+                    ;;
+                export)
+                    limit="${1:-0}"
+                    python3 - "$limit" << 'PYEOF'
+import sys
+sys.path.insert(0, '/home/' + __import__('os').environ['USER'] + '/persist-memory-probe/webhooks/grpc/generated')
+import grpc, probe_pb2, probe_pb2_grpc
+ch = grpc.insecure_channel('localhost:50052')
+try:
+    grpc.channel_ready_future(ch).result(timeout=2)
+except grpc.FutureTimeoutError:
+    print('probe server not running on :50052', file=sys.stderr); sys.exit(1)
+limit = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 0
+examples = probe_pb2_grpc.TrainingServiceStub(ch).ExportTrainingData(
+            probe_pb2.ExportRequest(include_base=True, limit=limit), timeout=15)
+count = 0
+for ex in examples:
+    print(ex.jsonl)
+    count += 1
+print(f'# {count} examples', file=sys.stderr)
+PYEOF
+                    ;;
                 *)
-                    echo "Usage: sashi probe [sync [repo]|write <path> <content>|status]"
+                    echo "Usage: sashi probe [sync [repo]|list|recommend <op>|export [N]|write <path> <content>|status]"
+                    ;;
+            esac
+            ;;
+        grpc)
+            shift
+            subcmd="${1:-status}"
+            shift || true
+            KANBAN_PID="/tmp/sashi-grpc-kanban.pid"
+            PROBE_PID="/tmp/sashi-grpc-probe.pid"
+            _grpc_start() {
+                local name="$1" script="$2" pidfile="$3"
+                if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile" 2>/dev/null)" 2>/dev/null; then
+                    echo -e "  $name ${YELLOW}already running${NC} (pid=$(cat "$pidfile"))"
+                    return
+                fi
+                nohup python3 "$script" > "/tmp/sashi-grpc-${name}.log" 2>&1 &
+                echo $! > "$pidfile"
+                sleep 1
+                if kill -0 "$(cat "$pidfile")" 2>/dev/null; then
+                    echo -e "  $name ${GREEN}started${NC} pid=$(cat "$pidfile")"
+                else
+                    echo -e "  $name ${RED}failed to start${NC} — check /tmp/sashi-grpc-${name}.log"
+                fi
+            }
+            _grpc_stop() {
+                local name="$1" pidfile="$2"
+                if [ -f "$pidfile" ]; then
+                    local pid
+                    pid=$(cat "$pidfile" 2>/dev/null)
+                    if kill -0 "$pid" 2>/dev/null; then
+                        kill "$pid" && rm -f "$pidfile"
+                        echo -e "  $name ${YELLOW}stopped${NC}"
+                    else
+                        rm -f "$pidfile"
+                        echo -e "  $name was not running"
+                    fi
+                else
+                    echo -e "  $name not running"
+                fi
+            }
+            case "$subcmd" in
+                start)
+                    echo "Starting gRPC servers..."
+                    _grpc_start "kanban" "$HOME/kanban-pmo/server/grpc_server.py" "$KANBAN_PID"
+                    _grpc_start "probe"  "$HOME/persist-memory-probe/webhooks/grpc/probe_server.py" "$PROBE_PID"
+                    ;;
+                stop)
+                    echo "Stopping gRPC servers..."
+                    _grpc_stop "kanban" "$KANBAN_PID"
+                    _grpc_stop "probe"  "$PROBE_PID"
+                    ;;
+                restart)
+                    echo "Restarting gRPC servers..."
+                    _grpc_stop "kanban" "$KANBAN_PID"
+                    _grpc_stop "probe"  "$PROBE_PID"
+                    sleep 1
+                    _grpc_start "kanban" "$HOME/kanban-pmo/server/grpc_server.py" "$KANBAN_PID"
+                    _grpc_start "probe"  "$HOME/persist-memory-probe/webhooks/grpc/probe_server.py" "$PROBE_PID"
+                    ;;
+                status)
+                    echo "gRPC Servers:"
+                    _grpc_pid_check "kanban-pmo" 50051 "$KANBAN_PID"
+                    _grpc_pid_check "probe     " 50052 "$PROBE_PID"
+                    ;;
+                logs)
+                    echo "=== kanban log ==="
+                    tail -20 /tmp/sashi-grpc-kanban.log 2>/dev/null || echo "  (no log)"
+                    echo "=== probe log ==="
+                    tail -20 /tmp/sashi-grpc-probe.log 2>/dev/null || echo "  (no log)"
+                    ;;
+                *)
+                    echo "Usage: sashi grpc [start|stop|restart|status|logs]"
                     ;;
             esac
             ;;
