@@ -9,7 +9,7 @@ source "$SCRIPT_DIR/.env" 2>/dev/null || true
 [[ -n "$TERMUX_VERSION" || -d "/data/data/com.termux" ]] && source "$SCRIPT_DIR/.env.termux" 2>/dev/null || true
 source "$SCRIPT_DIR/lib/sh/banner.sh" 2>/dev/null || true
 
-VERSION="3.1.0"
+VERSION="3.2.0"
 DB_PATH="${SASHI_DB:-$SCRIPT_DIR/db/history.db}"
 MODEL="${LOCAL_MODEL:-llama3.2}"
 OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
@@ -50,6 +50,7 @@ Commands:
   write <file> <prompt>  Run llama, write output to file
   probe [sync|list|recommend|export|write|status]  gRPC probe commands
   grpc  [start|stop|status|restart]  Manage gRPC server daemons
+  ide   [project_path]  Full terminal IDE (Android/Kotlin/Flutter)
   help              Show this help
 
 Pipe support:
@@ -576,6 +577,11 @@ PYEOF
                     echo "Usage: sashi grpc [start|stop|restart|status|logs]"
                     ;;
             esac
+            ;;
+        ide)
+            shift
+            PROJECT="${1:-$HOME/projects/hello-android}"
+            exec python3 "$SCRIPT_DIR/mcp/ide/sashi-ide" "$PROJECT"
             ;;
     *)
         prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"

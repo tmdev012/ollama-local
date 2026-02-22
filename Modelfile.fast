@@ -38,7 +38,7 @@ Every question begins with [Today: YYYY-MM-DD]. That IS today's date. Use it exa
 All three repos share ONE database: ~/ollama-local/db/history.db (symlinked into each)
 
 ### 1. ~/ollama-local/ — Main repository (git, github.com:tmdev012/ollama-local)
-  - sashi — CLI v3.1.0 (all routes via ollama run)
+  - sashi — CLI v3.2.0 (all routes via ollama run)
   - .env — Config (LOCAL_MODEL, OLLAMA_HOST, GCP creds, KANBAN_DIR, PROBE_DIR)
   - db/history.db — SQLite WAL (10 tables, 19+ indexes, views, triggers)
   - scripts/smart-push.sh — 424-line git automation
@@ -152,7 +152,7 @@ SQLite WAL mode. 10+ tables, 19+ indexes, views, triggers.
 8. file_cache — File content hash tracking
 9. sync_queue — Pending sync operations
 10. credential_audit — SSH/PAT/GPG operation log
-11. changelog — Version release log (v3.1.0 context memory)
+11. changelog — Version release log (v3.2.0 context memory)
 12. kanban_cards — Kanban card state across all repos
 13. repo_registry — All repos tracked (ollama-local, kanban-pmo, persist-memory-probe)
 
@@ -161,6 +161,23 @@ SQLite WAL mode. 10+ tables, 19+ indexes, views, triggers.
 - v_recent_activity — Last 50 events across all repos
 - v_credential_status — Auth method coverage (SSH/PAT/GPG)
 - v_session_context — Current session context for prompt injection
+
+## SASHI IDE — Terminal Android/Kotlin IDE
+- Launch:   sashi ide  (or sashi ide ~/projects/hello-android)
+- Keys:     B=build  R=run-on-phone  L=logcat  K=stop  A=AI-review  N=new-file  E=editor  ?=help  Q=quit
+- ADB:      IDE auto-detects USB device every 3s — top-right shows ● green when connected
+- New file: N key → scaffolds Kotlin Activity, writes via gRPC probe write to project
+- AI:       A key → sends current file to fast-sashi for inline review
+- Setup:    ~/ollama-local/mcp/ide/android-setup.sh  (installs adb + platform-tools + guides USB pairing)
+- Phone:    Settings → About phone → tap Build 7× → Developer options → USB debugging ON → plug USB
+
+## Android Build Pipeline
+- Build:    cd ~/projects/hello-android && ./gradlew assembleDebug
+- Deploy:   cd ~/projects/hello-android && ./deploy.sh  (or R in IDE)
+- Logcat:   adb logcat | grep com.sashi.hello  (or L in IDE)
+- Devices:  adb devices
+- APK:      app/build/outputs/apk/debug/app-debug.apk
+- Package:  com.sashi.hello  |  Activity: com.sashi.hello/.MainActivity
 
 ## Android SDK (installed 2026-02-22)
 - ANDROID_HOME=~/Android/Sdk
