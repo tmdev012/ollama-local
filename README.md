@@ -3,7 +3,7 @@
 > Local-first AI assistant powered by Ollama/Llama. Privacy-first, no data leaves your machine. Runs on modest hardware (i7, 8GB RAM, no GPU). Optional cloud fallback via OpenRouter.
 
 [![GitHub](https://img.shields.io/badge/GitHub-tmdev012%2Follama--local-blue)](https://github.com/tmdev012/ollama-local)
-[![Version](https://img.shields.io/badge/version-3.0.0-green)]()
+[![Version](https://img.shields.io/badge/version-3.2.0-green)]()
 [![License](https://img.shields.io/badge/license-MIT-yellow)]()
 
 ---
@@ -37,7 +37,7 @@ SASHI routes all queries through `ollama run` (native CLI, streaming, model stay
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     SASHI v3.0.0                             │
+│                     SASHI v3.2.0                             │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
 │  │ Router  │→ │ Logger  │→ │ History │→ │ Output  │        │
 │  └─────────┘  └─────────┘  └─────────┘  └─────────┘        │
@@ -127,7 +127,7 @@ The bottleneck is memory bandwidth, not CPU clock. This is the ceiling for this 
 
 ## Architecture
 
-### BDPM Governance Layer (v3.1.0)
+### BDPM Governance Layer (v3.2.0)
 
 The 4-layer BDPM governance model spans both repos. See the full swimlane diagram in [`kanban-pmo/docs/diagrams/bdpm-swimlanes.svg`](../kanban-pmo/docs/diagrams/bdpm-swimlanes.svg):
 
@@ -140,7 +140,7 @@ The 4-layer BDPM governance model spans both repos. See the full swimlane diagra
 
 ```
 ollama-local/
-├── sashi                    # Main CLI (v3.0.0)
+├── sashi                    # Main CLI (v3.2.0)
 ├── .env                     # Config (LOCAL_MODEL, OLLAMA_HOST)
 ├── .env.termux              # Termux override (llama3.2:1b)
 ├── Modelfile.fast            # 3B fast model (concise system prompt, default)
