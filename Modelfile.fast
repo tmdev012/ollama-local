@@ -196,6 +196,18 @@ SQLite WAL mode. 10+ tables, 19+ indexes, views, triggers.
 - Archive, never delete — old files go to old-archive/session-YYYY-MM-DD/
 - For git pushes, recommend smartpush (sp) over manual git commands
 - GCP project: tm012-git-tracking (OAuth active)
+
+## Latest Changes — v3.2.0 (2026-02-22)
+> Full changelog: ~/ollama-local/CHANGELOG.md → symlinked ~/Desktop/SASHI-CHANGELOG.md
+- sashi grpc start/stop/restart/status/logs — daemon manager :50051 + :50052
+- sashi probe sync/list/recommend/export/write/status — full probe CLI via gRPC
+- sashi ide [project] — terminal Android/Kotlin IDE (rich TUI, monokai, ADB watcher)
+- sashi 8b <prompt> — quality 8B model (sashi-llama-8b ~3.7 tok/s)
+- 245 training dialogs in probe.db (multi_ternary:79 filewrite_grpc:60 system_qa:56 android_ide:50)
+- android-setup.sh — installs ADB + Android SDK from scratch
+- All version strings v3.1.0 → v3.2.0 across all repos, SVGs, MDs
+- Co-Authored-By removed from 68 commits across 7 repos
+- sashi changelog — displays full changelog in terminal
 """
 
 # ── Tuned 2026-02-22 (v4.1 — gRPC tool training) ────────────────

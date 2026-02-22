@@ -206,6 +206,17 @@ print(f'  Total: {total}')
 for m, cnt, avg in by_model:
     print(f'  {m}: {cnt} queries, avg {int(avg or 0)}ms')
 PYEOF
+
+    echo ""
+    echo "Latest Changes:"
+    CHANGELOG="$SCRIPT_DIR/CHANGELOG.md"
+    if [ -f "$CHANGELOG" ]; then
+        # Extract lines from first ## heading down to the blank line before second ##
+        awk '/^## v/{found++} found==1{print "  "$0} found==2{exit}' "$CHANGELOG" | head -15
+        echo -e "  ${BLUE}Full changelog: sashi changelog  |  ~/Desktop/SASHI-CHANGELOG.md${NC}"
+    else
+        echo "  (no CHANGELOG.md)"
+    fi
 }
 
 show_history() {
@@ -290,6 +301,14 @@ case "${1:-help}" in
         ;;
     status)
         show_status
+        ;;
+    changelog)
+        CHANGELOG="$SCRIPT_DIR/CHANGELOG.md"
+        if [ -f "$CHANGELOG" ]; then
+            cat "$CHANGELOG"
+        else
+            echo "No CHANGELOG.md found at $CHANGELOG"
+        fi
         ;;
     models)
         ollama list 2>/dev/null || echo "Ollama not running"
