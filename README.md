@@ -136,6 +136,10 @@ The 4-layer BDPM governance model spans both repos. See the full swimlane diagra
 - **Production** — gRPC pipeline dispatch, ollama inference, file write, DB log (this repo)
 - **Monitoring** — cred audit, health check, doc sync, CMMI compliance
 
+### Credential Layer
+
+`persist-memory-probe/lib/sh/gatekeeper_3_1_0.sh` is the credential gateway. It delegates inference to ollama-local while owning github/sign/remote routes. All `sashi` sub-commands (kanban, probe, write) pass through the gatekeeper before hitting the gRPC layer.
+
 ### Directory Structure
 
 ```
@@ -163,8 +167,14 @@ ollama-local/
 │   ├── gmail/               # Gmail CLI (search, recent, export)
 │   └── voice/               # Voice input (CLI + GUI)
 │
+├── lib/
+│   └── sh/
+│       ├── banner.sh        # sashi_banner() ASCII art — sourced by all tools
+│       └── aliases.sh       # Shell aliases (s8b, skanban, etc.)
+│
 ├── scripts/
 │   ├── smart-push.sh        # 424-line git automation
+│   ├── rebuild-models.sh    # Rebuild fast-sashi + sashi-llama-8b from Modelfiles
 │   ├── termux-sync.sh       # Desktop ↔ phone sync
 │   ├── git-setup.sh         # SSH/GitHub setup
 │   └── git-aliases.sh       # Git alias installer
