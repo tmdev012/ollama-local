@@ -175,6 +175,7 @@ ollama-local/
 ├── scripts/
 │   ├── smart-push.sh        # 424-line git automation
 │   ├── rebuild-models.sh    # Rebuild fast-sashi + sashi-llama-8b from Modelfiles
+│   ├── android-setup.sh     # Downloads + installs Android SDK, platform-tools, adb
 │   ├── termux-sync.sh       # Desktop ↔ phone sync
 │   ├── git-setup.sh         # SSH/GitHub setup
 │   └── git-aliases.sh       # Git alias installer
@@ -280,9 +281,13 @@ docker exec -it sashi-ai bash
 ### Basic Commands
 
 ```bash
-# Quick question (local llama)
+# Quick question (local llama 3B)
 sashi ask "What is Python?"
 sask "Explain REST APIs"
+
+# 8B quality route (better reasoning)
+sashi 8b "Explain async/await in depth"
+s8b "complex question"
 
 # Code help
 sashi code "Write a sorting function in Python"
@@ -302,9 +307,65 @@ sashi voice --continuous # Keep listening
 sashi voice --gui        # Desktop app
 
 # System status
-sashi status    # or: sstatus
+sashi status    # or: sstatus — shows gRPC health + latest changelog
 sashi models    # or: smodels
 sashi history   # or: shistory
+sashi changelog # View CHANGELOG.md inline
+```
+
+### gRPC Daemon Management
+
+```bash
+# Start both gRPC servers (:50051 kanban-pmo, :50052 probe)
+sashi grpc start
+
+# Check daemon health
+sashi grpc status
+
+# Stop / restart
+sashi grpc stop
+sashi grpc restart
+
+# Tail logs
+sashi grpc logs
+```
+
+### Probe CLI (via :50052)
+
+```bash
+# Sync a repo into probe.db
+sashi probe sync [repo]
+
+# List registered repos
+sashi probe list
+
+# Get credential recommendation
+sashi probe recommend <operation>
+
+# Export training dialogs
+sashi probe export [N]
+
+# Write a file via gRPC
+sashi probe write <path> <content>
+
+# Check probe server health
+sashi probe status
+```
+
+### IDE
+
+```bash
+# Launch terminal Android/Kotlin IDE
+sashi ide [project-path]
+```
+
+### Kanban
+
+```bash
+sashi kanban board    # Full board view
+sashi kanban wip      # In-progress cards
+sashi kanban backlog  # Backlog
+sashi kanban state    # Summary counts
 ```
 
 ### Pipe Support
@@ -334,18 +395,19 @@ gissue 42              # Find commits by issue number
 | v1.0 | 2026-02 | Initial CLI, `ollama run` calls |
 | v2.0 | 2026-02-05 | HTTP API optimization, 5-8s→2.2s, voice, 22 clean aliases |
 | v3.0 | 2026-02-08 | Back to `ollama run` (streams, keeps model hot), DeepSeek removed |
-| v3.1 | 2026-02-10 | 8B model, num_thread tuning, Termux support, perf benchmarks |
-| **v3.2** | **2026-02-17** | **fast-sashi default, date injection, ai-orchestrator v2, context drift fixes** |
+| v3.1 | 2026-02-19 | banner.sh, aliases.sh, kanban subcommand, smart-push, gRPC stubs |
+| **v3.2** | **2026-02-22** | **gRPC daemon manager, probe CLI, IDE, 8B routing, 245 training dialogs** |
 
 ### v3.1→v3.2 Changes
 
 | Aspect | v3.1 | v3.2 |
 |--------|------|------|
-| **Default model** | sashi-llama | **fast-sashi** (concise, date-aware) |
-| **Date awareness** | none (hallucinated 2023) | **[Today: YYYY-MM-DD]** injected at query time |
-| **ai-orchestrator** | hardcoded llama3.2, no .env | **v2.0**: reads .env, logs to DB, date injection |
-| **Context drift** | model confused audio/image panning | System prompt anchors domain context |
-| **Models** | 3B + 8B | 3B (fast-sashi, sashi-llama) + 8B + turbo-llama, fast-llama |
+| **gRPC** | hollow ProbeSyncServicer stub | **daemon manager** `:50051` + `:50052` via `sashi grpc` |
+| **Probe CLI** | sync-only via kanban-pmo | **full probe CLI** via :50052 (list/recommend/export/write) |
+| **IDE** | none | **`sashi ide`** — terminal Android/Kotlin IDE (rich TUI, ADB) |
+| **8B routing** | manual model switch | **`sashi 8b <prompt>`** — direct 8B quality route |
+| **Training data** | 0 dialogs | **245 dialogs** in probe.db (multi_ternary, filewrite_grpc, android_ide) |
+| **Modelfiles** | v4.0 | **v4.1** — gRPC + probe + IDE + Android docs in system prompt |
 
 ---
 
@@ -492,13 +554,15 @@ CREATE INDEX idx_commits_timestamp ON commits(timestamp);
 | Alias | Command | Description |
 |-------|---------|-------------|
 | `s` | `sashi` | Main interface |
-| `sask` | `sashi ask` | Quick question (local llama) |
+| `sask` | `sashi ask` | Quick question (local 3B) |
+| `s8b` | `sashi 8b` | 8B quality route |
 | `scode` | `sashi code` | Code help (local llama) |
 | `slocal` | `sashi local` | Same as ask |
 | `schat` | `sashi chat` | Interactive chat |
-| `sstatus` | `sashi status` | System status |
+| `sstatus` | `sashi status` | System status + gRPC health |
 | `smodels` | `sashi models` | List models |
 | `shistory` | `sashi history` | Query history |
+| `skanban` | `sashi kanban board` | Kanban board |
 | `sgmail` | `sashi gmail` | Email context |
 
 ### Git
@@ -774,4 +838,4 @@ MIT
 
 ---
 
-*Built with Claude Code CLI - Feb 2026 | Last updated: 2026-02-17*
+*Built with Claude Code CLI - Feb 2026 | Last updated: 2026-02-22*
