@@ -48,6 +48,7 @@ Commands:
   8b <prompt>       Query via sashi-llama-8b (8B model, better quality)
   kanban [board|state|backlog|open|wip|closed]  Kanban board
   write <file> <prompt>  Run llama, write output to file
+  probe [sync|write|status]  ProbeSync gRPC bridge (kanban-pmo :50051)
   help              Show this help
 
 Pipe support:
@@ -355,6 +356,77 @@ case "${1:-help}" in
             echo "Writing to $outfile..."
             ollama run "$MODEL" "$prompt" > "$outfile"
             echo "Done: $outfile ($(wc -l < "$outfile") lines)"
+            ;;
+        probe)
+            shift
+            subcmd="${1:-status}"
+            shift || true
+            GRPC_PORT="${GRPC_PORT:-50051}"
+            GENERATED_DIR="$HOME/kanban-pmo/generated"
+            case "$subcmd" in
+                sync)
+                    repo_name="${1:-}"
+                    python3 - "$repo_name" "$GRPC_PORT" "$GENERATED_DIR" << 'PYEOF'
+import sys
+sys.path.insert(0, sys.argv[3])
+import grpc, kanban_pb2, kanban_pb2_grpc
+channel = grpc.insecure_channel(f"localhost:{sys.argv[2]}")
+stub = kanban_pb2_grpc.ProbeSyncStub(channel)
+try:
+    resp = stub.SyncRepo(kanban_pb2.SyncRepoRequest(repo_name=sys.argv[1], force=False),
+                         timeout=90)
+    if resp.ok:
+        print(f"ok  files_synced={resp.files_synced}")
+    else:
+        print(f"err {resp.error}", file=sys.stderr)
+        sys.exit(1)
+except grpc.RpcError as e:
+    print(f"gRPC error: {e.code()} {e.details()}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+                    ;;
+                write)
+                    target_path="${1:-}"
+                    shift || true
+                    content="${*:-$(cat -)}"
+                    [[ -z "$target_path" ]] && { echo "Usage: sashi probe write <path> <content>"; exit 1; }
+                    python3 - "$target_path" "$content" "$GRPC_PORT" "$GENERATED_DIR" << 'PYEOF'
+import sys
+sys.path.insert(0, sys.argv[4])
+import grpc, kanban_pb2, kanban_pb2_grpc
+channel = grpc.insecure_channel(f"localhost:{sys.argv[3]}")
+stub = kanban_pb2_grpc.ProbeSyncStub(channel)
+try:
+    resp = stub.FsWrite(kanban_pb2.FsWriteRequest(target_path=sys.argv[1], content=sys.argv[2]),
+                        timeout=10)
+    if resp.ok:
+        print(f"ok  written={resp.written_path}")
+    else:
+        print(f"err {resp.error}", file=sys.stderr)
+        sys.exit(1)
+except grpc.RpcError as e:
+    print(f"gRPC error: {e.code()} {e.details()}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+                    ;;
+                status)
+                    python3 - "$GRPC_PORT" "$GENERATED_DIR" << 'PYEOF'
+import sys
+sys.path.insert(0, sys.argv[2])
+import grpc, kanban_pb2, kanban_pb2_grpc
+channel = grpc.insecure_channel(f"localhost:{sys.argv[1]}")
+try:
+    grpc.channel_ready_future(channel).result(timeout=2)
+    print(f"gRPC server reachable on :{sys.argv[1]}")
+except grpc.FutureTimeoutError:
+    print(f"gRPC server not reachable on :{sys.argv[1]} — start with: python3 ~/kanban-pmo/server/grpc_server.py", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+                    ;;
+                *)
+                    echo "Usage: sashi probe [sync [repo]|write <path> <content>|status]"
+                    ;;
+            esac
             ;;
     *)
         prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"
