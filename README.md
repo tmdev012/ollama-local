@@ -239,7 +239,35 @@ All custom models include system prompts with date awareness. The default `fast-
 
 ## Installation
 
-### Quick Install (Linux)
+### One-liner (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tmdev012/ollama-local/main/install.sh | bash
+```
+
+Then reload your shell:
+
+```bash
+source ~/.bashrc   # or source ~/.zshrc
+sashi status
+```
+
+The installer handles everything: Ollama, llama3.2 model, CPU tuning, DB init, shell aliases.
+
+#### Flags
+
+```bash
+# Skip model download (if you already have llama3.2)
+curl -fsSL .../install.sh | bash -s -- --no-models
+
+# Skip CPU governor tuning (e.g. on a server)
+curl -fsSL .../install.sh | bash -s -- --no-gpu-tune
+
+# Termux / Android
+curl -fsSL .../install.sh | bash -s -- --termux
+```
+
+### Manual Install (Linux)
 
 ```bash
 # 1. Install Ollama
@@ -247,23 +275,21 @@ curl -fsSL https://ollama.ai/install.sh | sh
 sudo systemctl enable --now ollama
 
 # 2. Clone repo
-git clone git@github.com:tmdev012/ollama-local.git ~/ollama-local
-cd ~/ollama-local
+git clone https://github.com/tmdev012/ollama-local.git ~/ollama-local
 
 # 3. Pull base model + build optimized custom models
 ollama pull llama3.2
-ollama create fast-sashi -f Modelfile.fast         # Default (concise, date-aware)
-ollama create sashi-llama -f Modelfile.system       # Full system context
+ollama create fast-sashi -f ~/ollama-local/Modelfile.fast
 
 # 4. (Optional) 8B model — needs 8GB+ swap
 ollama pull llama3.1:8b
-ollama create sashi-llama-8b -f Modelfile.8b
+ollama create sashi-llama-8b -f ~/ollama-local/Modelfile.8b
 
 # 5. Apply performance tuning (see Performance Tuning section above)
 
 # 6. Add to shell
-echo 'source ~/ollama-local/scripts/git-aliases.sh' >> ~/.bashrc
-ln -sf ~/ollama-local/sashi ~/bin/sashi
+echo 'export PATH="$HOME/ollama-local:$PATH"' >> ~/.bashrc
+echo 'source ~/ollama-local/lib/sh/aliases.sh' >> ~/.bashrc
 source ~/.bashrc
 ```
 
