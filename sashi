@@ -51,6 +51,7 @@ Commands:
   probe [sync|list|recommend|export|write|status]  gRPC probe commands
   grpc  [start|stop|status|restart]  Manage gRPC server daemons
   ide   [project_path]  Full terminal IDE (Android/Kotlin/Flutter)
+  adb   [status|devices|wireless|shell|logcat|install|push|pull]  Android device tools
   help              Show this help
 
 Pipe support:
@@ -601,6 +602,69 @@ PYEOF
             shift
             PROJECT="${1:-$HOME/projects/hello-android}"
             exec python3 "$SCRIPT_DIR/mcp/ide/sashi-ide" "$PROJECT"
+            ;;
+        adb)
+            shift
+            ADB_BIN="$HOME/Android/platform-tools/adb"
+            if [[ ! -x "$ADB_BIN" ]]; then
+                echo "adb not installed — run: bash ~/ollama-local/scripts/android-setup.sh"
+                exit 1
+            fi
+            ADB_CMD="${1:-status}"
+            case "$ADB_CMD" in
+                status)
+                    echo -e "\n${BLUE}=== USB Devices ===${NC}"
+                    lsusb
+                    echo -e "\n${BLUE}=== ADB Devices ===${NC}"
+                    "$ADB_BIN" devices -l
+                    ;;
+                devices)
+                    "$ADB_BIN" devices -l
+                    ;;
+                shell)
+                    shift
+                    "$ADB_BIN" shell "$@"
+                    ;;
+                logcat)
+                    shift
+                    "$ADB_BIN" logcat "$@"
+                    ;;
+                install)
+                    shift
+                    [[ -z "$1" ]] && { echo "Usage: sashi adb install <file.apk>"; exit 1; }
+                    "$ADB_BIN" install "$1"
+                    ;;
+                push)
+                    shift
+                    [[ -z "$2" ]] && { echo "Usage: sashi adb push <local> <remote>"; exit 1; }
+                    "$ADB_BIN" push "$1" "$2"
+                    ;;
+                pull)
+                    shift
+                    [[ -z "$1" ]] && { echo "Usage: sashi adb pull <remote> [local]"; exit 1; }
+                    "$ADB_BIN" pull "$@"
+                    ;;
+                wireless)
+                    shift
+                    PORT="${1:-5555}"
+                    echo "Switching device to TCP mode on port $PORT..."
+                    "$ADB_BIN" tcpip "$PORT"
+                    IP=$("$ADB_BIN" shell ip route | awk '/wlan0/ {print $9}' | head -1)
+                    if [[ -n "$IP" ]]; then
+                        echo "Device IP: $IP"
+                        echo "Connecting wirelessly..."
+                        "$ADB_BIN" connect "$IP:$PORT"
+                        echo "You can now unplug USB. Run: sashi adb status"
+                    else
+                        echo "Could not auto-detect IP."
+                        echo "Run: sashi adb shell ip route"
+                        echo "Then: adb connect <phone-ip>:$PORT"
+                    fi
+                    ;;
+                *)
+                    echo "Usage: sashi adb [status|devices|wireless|shell|logcat|install|push|pull]"
+                    ;;
+            esac
             ;;
     *)
         prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"
