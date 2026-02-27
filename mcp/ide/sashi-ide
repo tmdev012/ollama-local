@@ -1,686 +1,187 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════╗
-║  Sashi Android Studio v1.2 — Terminal IDE for Android / Kotlin  ║
-║  File tree · Syntax highlight · Build · ADB deploy · Logcat     ║
-║  AI assist (fast-sashi) · Offline-first · gRPC file-write       ║
+║  Sashi Android Studio v2.0 — Terminal IDE for Android / Kotlin  ║
+║  File tree · Build · Deploy · AI assist · Git diff              ║
+║  No SDK/ADB required · Works without TTY                        ║
 ╚══════════════════════════════════════════════════════════════════╝
 """
 
-import os, sys, tty, termios, threading, queue, subprocess, time, signal, json
+import os, sys, subprocess, threading, time, shutil
 from pathlib import Path
-from dotenv import dotenv_values  # type: ignore
 
-# ── Bootstrap env ─────────────────────────────────────────────────────────────
-_ENV_FILE = Path.home() / "ollama-local" / ".env"
-_env = dotenv_values(str(_ENV_FILE)) if _ENV_FILE.exists() else {}
-
-JAVA_HOME          = _env.get("JAVA_HOME", "/usr/lib/jvm/java-17-openjdk-amd64")
-ANDROID_HOME       = os.path.expandvars(_env.get("ANDROID_HOME", str(Path.home() / "Android/Sdk")))
-PLATFORM_TOOLS     = os.path.expandvars(_env.get("ANDROID_PLATFORM_TOOLS", f"{ANDROID_HOME}/platform-tools"))
-BUILD_TOOLS        = os.path.expandvars(_env.get("ANDROID_BUILD_TOOLS",    f"{ANDROID_HOME}/build-tools/34.0.0"))
-CMDLINE_TOOLS      = os.path.expandvars(_env.get("ANDROID_CMDLINE_TOOLS",  f"{ANDROID_HOME}/cmdline-tools/latest/bin"))
-
-ADB = str(Path(PLATFORM_TOOLS) / "adb")
-
-IDE_ENV = os.environ.copy()
-IDE_ENV["JAVA_HOME"]        = JAVA_HOME
-IDE_ENV["ANDROID_HOME"]     = ANDROID_HOME
-IDE_ENV["ANDROID_SDK_ROOT"] = ANDROID_HOME
-IDE_ENV["PATH"] = f"{JAVA_HOME}/bin:{PLATFORM_TOOLS}:{BUILD_TOOLS}:{CMDLINE_TOOLS}:{os.environ['PATH']}"
-
-# ── Rich imports ──────────────────────────────────────────────────────────────
 try:
-    from rich.live      import Live
-    from rich.layout    import Layout
-    from rich.panel     import Panel
-    from rich.syntax    import Syntax
-    from rich.table     import Table
-    from rich.text      import Text
-    from rich.console   import Console
-    from rich.spinner   import Spinner
-    from rich           import box
-    from rich.columns   import Columns
+    from dotenv import dotenv_values  # type: ignore
+    _env = dotenv_values(str(Path.home() / "ollama-local" / ".env"))
+except Exception:
+    _env = {}
+
+# ── Rich ──────────────────────────────────────────────────────────────────────
+try:
+    from rich.console import Console
+    from rich.table   import Table
+    from rich.syntax  import Syntax
+    from rich.panel   import Panel
+    from rich.text    import Text
+    from rich         import box
 except ImportError:
-    print("Installing rich..."); subprocess.run([sys.executable, "-m", "pip", "install", "rich", "-q"])
-    from rich.live   import Live;  from rich.layout  import Layout
-    from rich.panel  import Panel; from rich.syntax  import Syntax
-    from rich.table  import Table; from rich.text    import Text
-    from rich.console import Console; from rich.spinner import Spinner
-    from rich        import box
+    subprocess.run([sys.executable, "-m", "pip", "install", "rich", "-q"])
+    from rich.console import Console
+    from rich.table   import Table
+    from rich.syntax  import Syntax
+    from rich.panel   import Panel
+    from rich.text    import Text
+    from rich         import box
 
 console = Console()
 
-# ── State ─────────────────────────────────────────────────────────────────────
-class IDEState:
-    def __init__(self, project_root: Path):
-        self.root        = project_root
-        self.files       = []          # flat list of Path objects (visible in tree)
-        self.file_idx    = 0           # selected file index
-        self.open_file   = None        # currently viewed Path
-        self.open_lines  = []          # lines of open file
-        self.scroll      = 0           # code scroll offset
-        self.build_log   = []          # build output lines
-        self.adb_device  = None        # serial or None
-        self.adb_status  = "scanning…"
-        self.status_msg  = "Ready — press ? for help"
-        self.mode        = "normal"    # normal | build | logcat | ai | diff
-        self.spinner_on  = False
-        self.spinner_txt = ""
-        self.ai_resp     = ""
-        self.lock        = threading.Lock()
-        # inline input
-        self.input_mode  = False       # True when footer prompt is active
-        self.input_prompt= ""          # e.g. "AI question:" or "New class name:"
-        self.input_buf   = ""          # current typed text
-        self.input_cb    = None        # callable(text) when Enter pressed
-        # diff state
-        self.diff_lines  = []          # raw diff output lines
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def run(args, cwd=None, label=""):
+    if label:
+        console.print(f"[cyan]▶ {label}[/cyan]")
+    proc = subprocess.Popen(
+        args, cwd=str(cwd) if cwd else None,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+    for line in proc.stdout:
+        console.print(line.rstrip())
+    proc.wait()
+    ok = proc.returncode == 0
+    console.print(f"[{'green' if ok else 'red'}]{'✓ done' if ok else '✗ failed'} (exit {proc.returncode})[/{'green' if ok else 'red'}]")
+    return ok
 
-    def log(self, line: str):
-        with self.lock:
-            self.build_log.append(line)
-            if len(self.build_log) > 500:
-                self.build_log = self.build_log[-500:]
+def adb_cmd():
+    """Return adb binary path — system adb or none."""
+    return shutil.which("adb") or shutil.which("adb.exe")
 
-    def scan_files(self):
-        exts = {".kt", ".java", ".xml", ".kts", ".toml", ".gradle", ".md", ".json", ".sh", ".py", ".yaml", ".yml", ".txt"}
-        skip = {"build", ".gradle", ".idea", "__pycache__", "node_modules", ".git"}
-        found = []
-        for p in sorted(self.root.rglob("*")):
-            if any(s in p.parts for s in skip): continue
-            if p.is_file() and p.suffix in exts:
-                found.append(p)
-        self.files = found
-        if found and self.open_file is None:
-            self.open_file = found[0]
-            self._load_file()
-
-    def _load_file(self):
-        try:
-            self.open_lines = self.open_file.read_text(errors="replace").splitlines()
-            self.scroll = 0
-        except Exception as e:
-            self.open_lines = [f"[error reading file: {e}]"]
-
-    def select_file(self, idx: int):
-        self.file_idx = max(0, min(idx, len(self.files) - 1))
-        self.open_file = self.files[self.file_idx]
-        self._load_file()
-
-    def start_input(self, prompt: str, cb):
-        """Enter inline input mode — footer shows a text prompt."""
-        self.input_mode   = True
-        self.input_prompt = prompt
-        self.input_buf    = ""
-        self.input_cb     = cb
-
-    def finish_input(self, cancelled: bool = False):
-        text = self.input_buf
-        self.input_mode   = False
-        self.input_prompt = ""
-        self.input_buf    = ""
-        cb = self.input_cb
-        self.input_cb = None
-        if not cancelled and cb and text.strip():
-            cb(text.strip())
-
-# ── ADB watcher ───────────────────────────────────────────────────────────────
-def adb_watcher(state: IDEState, stop: threading.Event):
-    while not stop.is_set():
-        try:
-            r = subprocess.run([ADB, "devices"], capture_output=True, text=True, timeout=3, env=IDE_ENV)
-            lines = [l for l in r.stdout.splitlines()[1:] if l.strip() and "offline" not in l]
-            devices = [l.split()[0] for l in lines if "\t" in l and "device" in l]
-            with state.lock:
-                if devices:
-                    state.adb_device = devices[0]
-                    state.adb_status = f"[green]● {devices[0]}[/green]"
-                else:
-                    state.adb_device = None
-                    state.adb_status = "[yellow]○ no device[/yellow]"
-        except Exception:
-            with state.lock:
-                state.adb_device = None
-                state.adb_status = "[red]○ adb error[/red]"
-        stop.wait(3)
-
-# ── Build / run ───────────────────────────────────────────────────────────────
-def run_cmd(state: IDEState, args: list, cwd: Path, label: str, done_cb=None):
-    state.log(f"\n[bold cyan]▶ {label}[/bold cyan]")
-    state.spinner_on  = True
-    state.spinner_txt = label
-    def _run():
-        try:
-            proc = subprocess.Popen(
-                args, cwd=str(cwd), env=IDE_ENV,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-            )
-            for line in proc.stdout:
-                state.log(line.rstrip())
-            proc.wait()
-            ok = proc.returncode == 0
-            state.log(f"[{'green' if ok else 'red'}]{'✓ SUCCESS' if ok else '✗ FAILED'} (exit {proc.returncode})[/{'green' if ok else 'red'}]")
-            if done_cb: done_cb(ok)
-        except Exception as e:
-            state.log(f"[red]error: {e}[/red]")
-            if done_cb: done_cb(False)
-        finally:
-            state.spinner_on  = False
-            state.spinner_txt = ""
-    threading.Thread(target=_run, daemon=True).start()
-
-def do_build(state: IDEState):
-    state.build_log.clear()
-    state.mode = "build"
-    run_cmd(state, ["./gradlew", "assembleDebug", "--quiet"], state.root, "gradle assembleDebug")
-
-def do_test(state: IDEState):
-    state.build_log.clear()
-    state.mode = "build"
-    run_cmd(state, ["./gradlew", "test", "--quiet"], state.root, "gradle test")
-
-def do_run(state: IDEState):
-    if not state.adb_device:
-        state.log("[yellow]⚠ No ADB device — connect phone + enable USB debugging[/yellow]")
-        state.log("[cyan]  Settings → Developer options → USB debugging → ON[/cyan]")
-        state.log("[cyan]  Then plug in USB cable and press R again[/cyan]")
-        state.mode = "build"
-        return
-    state.build_log.clear()
-    state.mode = "build"
-    apk = state.root / "app/build/outputs/apk/debug/app-debug.apk"
-    pkg = _get_package(state)
-
-    def after_build(ok: bool):
-        if not ok: return
-        state.log(f"\n[cyan]▶ adb install -r {apk.name}[/cyan]")
-        run_cmd(state, [ADB, "install", "-r", str(apk)], state.root, "adb install",
-                done_cb=lambda ok2: _launch(state, pkg) if ok2 else None)
-
-    run_cmd(state, ["./gradlew", "assembleDebug", "--quiet"], state.root, "gradle assembleDebug",
-            done_cb=after_build)
-
-def _launch(state: IDEState, pkg: str):
-    activity = f"{pkg}/.MainActivity"
-    state.log(f"[cyan]▶ adb shell am start -n {activity}[/cyan]")
-    run_cmd(state, [ADB, "shell", "am", "start", "-n", activity], state.root, "launch app")
-
-def _get_package(state: IDEState) -> str:
-    manifest = state.root / "app/src/main/AndroidManifest.xml"
+def get_package(root: Path) -> str:
+    manifest = root / "app/src/main/AndroidManifest.xml"
     try:
-        txt = manifest.read_text()
         import re
-        m = re.search(r'package="([^"]+)"', txt)
-        return m.group(1) if m else "com.sashi.hello"
+        m = re.search(r'package="([^"]+)"', manifest.read_text())
+        return m.group(1) if m else "com.example.app"
     except Exception:
-        return "com.sashi.hello"
+        return "com.example.app"
 
-def do_logcat(state: IDEState, stop_evt: threading.Event):
-    if not state.adb_device:
-        state.log("[yellow]No device for logcat[/yellow]"); return
-    state.build_log.clear()
-    state.mode = "logcat"
-    pkg = _get_package(state)
-    state.log(f"[cyan]▶ logcat — filtering {pkg}[/cyan]")
-    def _stream():
-        try:
-            proc = subprocess.Popen(
-                [ADB, "logcat", "--pid", _get_pid(pkg)],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, env=IDE_ENV
-            )
-            state._logcat_proc = proc
-            for line in proc.stdout:
-                if stop_evt.is_set(): break
-                state.log(line.rstrip())
-        except Exception as e:
-            state.log(f"[red]logcat error: {e}[/red]")
-    threading.Thread(target=_stream, daemon=True).start()
+# ── File browser ──────────────────────────────────────────────────────────────
+def scan_files(root: Path):
+    exts = {".kt",".java",".xml",".kts",".toml",".gradle",".md",".json",".sh",".py",".yaml",".yml",".txt"}
+    skip = {"build",".gradle",".idea","__pycache__","node_modules",".git"}
+    files = []
+    for p in sorted(root.rglob("*")):
+        if any(s in p.parts for s in skip): continue
+        if p.is_file() and p.suffix in exts:
+            files.append(p)
+    return files
 
-def _get_pid(pkg: str) -> str:
+def show_files(root: Path, files):
+    tbl = Table(show_header=False, box=box.SIMPLE, padding=(0,1))
+    tbl.add_column("n", style="dim", width=4)
+    tbl.add_column("file")
+    for i, f in enumerate(files, 1):
+        rel = f.relative_to(root)
+        depth = len(rel.parts) - 1
+        pad = "  " * depth
+        ext_color = {".kt":"bright_yellow",".xml":"bright_blue",".kts":"orange1",
+                     ".md":"green",".toml":"magenta"}.get(f.suffix,"white")
+        tbl.add_row(str(i), Text(f"{pad}{f.name}", style=ext_color))
+    console.print(Panel(tbl, title=f"[bold]FILES — {root.name}[/bold]", border_style="blue"))
+
+def view_file(f: Path, root: Path):
+    ext_map = {".kt":"kotlin",".java":"java",".xml":"xml",".kts":"kotlin",
+               ".toml":"toml",".md":"markdown",".sh":"bash",".py":"python",
+               ".json":"json",".yaml":"yaml",".yml":"yaml"}
+    lang = ext_map.get(f.suffix, "text")
     try:
-        r = subprocess.run([ADB, "shell", "pidof", pkg], capture_output=True, text=True, timeout=3, env=IDE_ENV)
-        return r.stdout.strip().split()[0] if r.stdout.strip() else "0"
-    except Exception:
-        return "0"
-
-def do_ai(state: IDEState, question: str = ""):
-    state.mode = "build"
-    ctx = ""
-    if state.open_file:
-        code = "\n".join(state.open_lines[:60])
-        ctx = f"File: {state.open_file.name}\n```\n{code}\n```\n"
-    prompt = f"{ctx}{question or 'Explain this code and suggest improvements.'}"
-    state.log("[cyan]▶ Asking fast-sashi...[/cyan]")
-    state.spinner_on  = True
-    state.spinner_txt = "AI thinking..."
-    def _ask():
-        try:
-            r = subprocess.run(
-                ["ollama", "run", "fast-sashi", prompt],
-                capture_output=True, text=True, timeout=120, env=IDE_ENV
-            )
-            for line in r.stdout.splitlines():
-                state.log(line)
-        except Exception as e:
-            state.log(f"[red]AI error: {e}[/red]")
-        finally:
-            state.spinner_on  = False
-            state.spinner_txt = ""
-    threading.Thread(target=_ask, daemon=True).start()
-
-def do_diff(state: IDEState):
-    """Show git diff of the currently open file in the code panel."""
-    if not state.open_file:
-        state.status_msg = "No file open for diff"
-        return
-    try:
-        r = subprocess.run(
-            ["git", "diff", "--", str(state.open_file)],
-            capture_output=True, text=True, cwd=str(state.root)
-        )
-        diff_out = r.stdout or "(no unstaged changes)"
-        # Also check staged
-        r2 = subprocess.run(
-            ["git", "diff", "--cached", "--", str(state.open_file)],
-            capture_output=True, text=True, cwd=str(state.root)
-        )
-        if r2.stdout:
-            diff_out = r2.stdout + "\n" + diff_out
-        state.diff_lines = diff_out.splitlines()
-        state.mode = "diff"
-        state.scroll = 0
-        state.status_msg = f"Diff: {state.open_file.name}  (D again or Q to close)"
+        syn = Syntax(f.read_text(errors="replace"), lang, theme="monokai",
+                     line_numbers=True, word_wrap=False)
+        console.print(Panel(syn, title=f"[bold]{f.relative_to(root)}[/bold]", border_style="green"))
     except Exception as e:
-        state.status_msg = f"git diff error: {e}"
+        console.print(f"[red]Cannot read file: {e}[/red]")
 
-def do_new_file(state: IDEState, rel_path: str, content: str):
-    """Write a new file via sashi probe write (gRPC) or directly."""
-    target = state.root / rel_path
-    target.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        r = subprocess.run(
-            ["python3", "-c", f"""
-import sys; sys.path.insert(0, '{Path.home()}/kanban-pmo/generated')
-import grpc, kanban_pb2, kanban_pb2_grpc
-ch = grpc.insecure_channel('localhost:50051')
-stub = kanban_pb2_grpc.ProbeSyncStub(ch)
-resp = stub.FsWrite(kanban_pb2.FsWriteRequest(
-    target_path='{target}', content={repr(content)}), timeout=5)
-print('grpc ok' if resp.ok else 'grpc fail')
-"""],
-            capture_output=True, text=True, timeout=10
-        )
-        via = "gRPC" if "ok" in r.stdout else "direct"
-    except Exception:
-        via = "direct"
-    if via == "direct":
-        target.write_text(content)
-    state.log(f"[green]✓ Created {rel_path} via {via}[/green]")
-    state.scan_files()
+# ── Build / test ──────────────────────────────────────────────────────────────
+def do_build(root: Path):
+    run(["./gradlew", "assembleDebug", "--quiet"], cwd=root, label="gradle assembleDebug")
 
-# ── Rendering ─────────────────────────────────────────────────────────────────
-HELP = """[bold cyan]Sashi Android Studio v1.2 — Keybindings[/bold cyan]
+def do_test(root: Path):
+    run(["./gradlew", "test", "--quiet"], cwd=root, label="gradle test")
 
-[yellow]Navigation[/yellow]
-  j / ↓      move file down
-  k / ↑      move file up
-  Enter      open selected file
-  g          jump to top of file
-  G          jump to bottom of file
-  PgDn / f   scroll code down
-  PgUp / b   scroll code up
+# ── Deploy ────────────────────────────────────────────────────────────────────
+def do_deploy(root: Path):
+    adb = adb_cmd()
+    if not adb:
+        console.print("[yellow]adb not found on PATH.[/yellow]")
+        console.print("[dim]Install with: sudo apt install adb[/dim]")
+        return
 
-[yellow]Build & Deploy[/yellow]
-  B          build APK (gradlew assembleDebug)
-  R          build + install + launch on phone
-  T          run tests (gradlew test)
-  L          logcat (app output)
-  K          kill logcat / stop current process
-  C          clear build/output log
+    console.print("[dim]Connect options:[/dim]")
+    console.print("  [cyan]1[/cyan] USB (already connected)")
+    console.print("  [cyan]2[/cyan] Wireless (enter IP)")
+    choice = input("Choice [1/2]: ").strip()
 
-[yellow]AI Assist[/yellow]
-  A          ask AI about current file (auto prompt)
-  /          ask custom AI question (inline input)
+    if choice == "2":
+        ip = input("Phone IP address (e.g. 192.168.1.42): ").strip()
+        if not ip:
+            console.print("[red]No IP entered.[/red]"); return
+        port = input("Port [default 5555]: ").strip() or "5555"
+        console.print(f"[cyan]▶ adb connect {ip}:{port}[/cyan]")
+        r = subprocess.run([adb, "connect", f"{ip}:{port}"], capture_output=True, text=True)
+        console.print(r.stdout.strip() or r.stderr.strip())
 
-[yellow]Files[/yellow]
-  D          git diff of current file
-  N          new Kotlin file (asks for class name)
-  E          open in $EDITOR (vim/nano)
+    # Verify device is available
+    r = subprocess.run([adb, "devices"], capture_output=True, text=True)
+    lines = [l for l in r.stdout.splitlines()[1:] if l.strip() and "device" in l and "offline" not in l]
+    if not lines:
+        console.print("[red]No device connected.[/red]"); return
+    console.print(f"[green]● Device: {lines[0].split()[0]}[/green]")
 
-[yellow]Other[/yellow]
-  ?          toggle this help
-  Q          quit
-"""
+    # Build then install
+    apk = root / "app/build/outputs/apk/debug/app-debug.apk"
+    if not apk.exists():
+        console.print("[yellow]APK not found — building first...[/yellow]")
+        if not run(["./gradlew", "assembleDebug", "--quiet"], cwd=root, label="gradle assembleDebug"):
+            return
 
-def render(state: IDEState, show_help: bool, term_h: int, term_w: int) -> Layout:
-    layout = Layout()
-    layout.split_column(
-        Layout(name="header", size=3),
-        Layout(name="main"),
-        Layout(name="output", size=14),
-        Layout(name="footer", size=3),
-    )
-    layout["main"].split_row(
-        Layout(name="tree",  ratio=1),
-        Layout(name="code",  ratio=3),
-    )
+    pkg = get_package(root)
+    if not run([adb, "install", "-r", str(apk)], label="adb install"):
+        return
+    activity = f"{pkg}/.MainActivity"
+    run([adb, "shell", "am", "start", "-n", activity], label=f"launch {pkg}")
 
-    # ── Header ────────────────────────────────────────────────────────────────
-    proj = state.root.name
-    file_name = state.open_file.name if state.open_file else "—"
-    hdr = Table.grid(expand=True)
-    hdr.add_column(justify="left")
-    hdr.add_column(justify="center")
-    hdr.add_column(justify="right")
-    hdr.add_row(
-        Text(f" ⚡ Sashi Android Studio  [{proj}]", style="bold green"),
-        Text(f" {file_name}", style="cyan"),
-        Text.from_markup(f"ADB: {state.adb_status}  v1.2 "),
-    )
-    layout["header"].update(Panel(hdr, style="bold", box=box.HEAVY_HEAD))
+# ── AI assist ─────────────────────────────────────────────────────────────────
+def do_ai(open_file: Path = None):
+    ctx = ""
+    if open_file:
+        try:
+            lines = open_file.read_text(errors="replace").splitlines()[:60]
+            ctx = f"File: {open_file.name}\n```\n" + "\n".join(lines) + "\n```\n"
+        except Exception:
+            pass
+    question = input("AI question (Enter for auto-explain): ").strip()
+    prompt = ctx + (question or "Explain this code and suggest improvements.")
+    console.print("[cyan]▶ Asking fast-sashi...[/cyan]")
+    r = subprocess.run(["ollama", "run", "fast-sashi", prompt],
+                       capture_output=True, text=True, timeout=120)
+    for line in (r.stdout or r.stderr).splitlines():
+        console.print(line)
 
-    # ── File tree ─────────────────────────────────────────────────────────────
-    tree_h = max(4, term_h - 20)
-    tree_tbl = Table(show_header=False, box=None, padding=(0, 0), expand=True)
-    tree_tbl.add_column()
-    vis_start = max(0, state.file_idx - tree_h // 2)
-    for i, f in enumerate(state.files[vis_start : vis_start + tree_h]):
-        abs_i = vis_start + i
-        rel   = str(f.relative_to(state.root))
-        depth = len(f.relative_to(state.root).parts) - 1
-        pad   = "  " * depth
-        sel   = abs_i == state.file_idx
-        ext_color = {".kt": "bright_yellow", ".xml": "bright_blue",
-                     ".kts": "orange1", ".md": "green", ".toml": "magenta"}.get(f.suffix, "white")
-        txt = Text(f"{pad}{'▶ ' if sel else '  '}{f.name}", style=f"bold {ext_color}" if sel else ext_color)
-        tree_tbl.add_row(txt)
-    layout["tree"].update(Panel(tree_tbl, title="[bold]FILES[/bold]", border_style="blue"))
+# ── Git diff ──────────────────────────────────────────────────────────────────
+def do_diff(root: Path, open_file: Path = None):
+    target = ["--", str(open_file)] if open_file else []
+    r  = subprocess.run(["git", "diff"]          + target, capture_output=True, text=True, cwd=str(root))
+    r2 = subprocess.run(["git", "diff", "--cached"] + target, capture_output=True, text=True, cwd=str(root))
+    diff = (r2.stdout + r.stdout).strip() or "(no changes)"
+    fname = open_file.name if open_file else "project"
+    syn = Syntax(diff, "diff", theme="monokai", line_numbers=True)
+    console.print(Panel(syn, title=f"[bold]DIFF — {fname}[/bold]", border_style="magenta"))
 
-    # ── Code viewer ────────────────────────────────────────────────────────────
-    if show_help:
-        layout["code"].update(Panel(Text.from_markup(HELP), title="[bold]HELP[/bold]", border_style="cyan"))
-    elif state.mode == "diff" and state.diff_lines:
-        code_h  = max(4, term_h - 20)
-        visible = state.diff_lines[state.scroll : state.scroll + code_h]
-        syn     = Syntax("\n".join(visible), "diff", theme="monokai", line_numbers=True,
-                         start_line=state.scroll + 1, word_wrap=False)
-        total   = len(state.diff_lines)
-        pct     = int(100 * state.scroll / max(1, total - code_h))
-        title   = f"[bold]DIFF  {state.open_file.relative_to(state.root) if state.open_file else ''}[/bold]  [dim]line {state.scroll+1}/{total} ({pct}%)[/dim]"
-        layout["code"].update(Panel(syn, title=title, border_style="magenta"))
-    elif state.open_file:
-        code_h   = max(4, term_h - 20)
-        ext_map  = {".kt": "kotlin", ".java": "java", ".xml": "xml",
-                    ".kts": "kotlin", ".toml": "toml", ".md": "markdown",
-                    ".sh": "bash", ".py": "python", ".json": "json",
-                    ".yaml": "yaml", ".yml": "yaml"}
-        lang     = ext_map.get(state.open_file.suffix, "text")
-        visible  = state.open_lines[state.scroll : state.scroll + code_h]
-        code_txt = "\n".join(visible)
-        syn      = Syntax(code_txt, lang, theme="monokai", line_numbers=True,
-                          start_line=state.scroll + 1, word_wrap=False)
-        total    = len(state.open_lines)
-        pct      = int(100 * state.scroll / max(1, total - code_h))
-        title    = f"[bold]{state.open_file.relative_to(state.root)}[/bold]  [dim]line {state.scroll+1}/{total} ({pct}%)[/dim]"
-        layout["code"].update(Panel(syn, title=title, border_style="green"))
-    else:
-        layout["code"].update(Panel(Text("No file selected", style="dim"), border_style="green"))
-
-    # ── Output / build log ────────────────────────────────────────────────────
-    out_h = 11
-    with state.lock:
-        log_lines = state.build_log[-(out_h):]
-    out_tbl = Table(show_header=False, box=None, padding=(0, 0), expand=True)
-    out_tbl.add_column()
-    for line in log_lines:
-        out_tbl.add_row(Text.from_markup(line) if "[" in line else Text(line, style="dim"))
-    mode_color = {"build": "yellow", "logcat": "cyan", "diff": "magenta", "normal": "dim"}.get(state.mode, "dim")
-    spin_txt   = f"  {state.spinner_txt}" if state.spinner_on else ""
-    out_title  = f"[bold {mode_color}]{state.mode.upper()}[/bold {mode_color}]{spin_txt}"
-    layout["output"].update(Panel(out_tbl, title=out_title, border_style=mode_color))
-
-    # ── Footer ────────────────────────────────────────────────────────────────
-    if state.input_mode:
-        # Inline input prompt
-        prompt_txt = Text(f" {state.input_prompt}  ", style="bold yellow")
-        input_txt  = Text(state.input_buf + "█", style="bold white")
-        ftr = Table.grid(expand=True)
-        ftr.add_column(justify="left")
-        ftr.add_column(justify="right")
-        ftr.add_row(
-            Text.assemble(prompt_txt, input_txt),
-            Text(" ESC to cancel  Enter to confirm", style="dim"),
-        )
-        layout["footer"].update(Panel(ftr, box=box.SIMPLE, border_style="yellow"))
-    else:
-        keys = "[B]uild  [R]un  [T]est  [L]ogcat  [K]ill  [C]lear  [A]I  [/]ask  [D]iff  [E]dit  [N]ew  [?]help  [Q]uit"
-        ftr  = Table.grid(expand=True)
-        ftr.add_column(justify="left")
-        ftr.add_column(justify="right")
-        ftr.add_row(Text(f" {keys}", style="dim"), Text(f" {state.status_msg}", style="italic cyan"))
-        layout["footer"].update(Panel(ftr, box=box.SIMPLE))
-
-    return layout
-
-# ── Input ─────────────────────────────────────────────────────────────────────
-def getch():
-    fd  = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    try:
-        tty.setraw(fd)
-        ch = os.read(fd, 1).decode("utf-8", errors="replace")
-        if ch == "\x1b":
-            import select as _sel
-            if _sel.select([sys.stdin], [], [], 0.05)[0]:
-                ch2 = os.read(fd, 1).decode("utf-8", errors="replace")
-                ch += ch2
-                if ch2 == "[":
-                    ch3 = os.read(fd, 1).decode("utf-8", errors="replace")
-                    ch += ch3
-                    # 4-byte sequences like \x1b[5~ (PgUp) and \x1b[6~ (PgDn)
-                    if ch3.isdigit() and _sel.select([sys.stdin], [], [], 0.05)[0]:
-                        ch += os.read(fd, 1).decode("utf-8", errors="replace")
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
-    return ch
-
-# ── Main ──────────────────────────────────────────────────────────────────────
-def main():
-    import argparse, shutil
-    ap = argparse.ArgumentParser(description="Sashi Android Studio — Terminal Android/Kotlin IDE")
-    ap.add_argument("project", nargs="?", default=str(Path.home() / "projects/hello-android"),
-                    help="Path to Android/Kotlin project (default: ~/projects/hello-android)")
-    args = ap.parse_args()
-
-    root = Path(args.project).expanduser().resolve()
-    if not root.exists():
-        console.print(f"[red]Project not found: {root}[/red]"); sys.exit(1)
-
-    state = IDEState(root)
-    state.scan_files()
-    state.log(f"[bold green]Sashi Android Studio v1.2[/bold green]  [{root.name}]")
-    state.log(f"  JAVA_HOME: {JAVA_HOME}")
-    state.log(f"  ADB:       {ADB}")
-    state.log(f"  Project:   {root}")
-    state.log("")
-    state.log("[dim]Press B to build, R to run on phone, ? for full help[/dim]")
-
-    stop_evt    = threading.Event()
-    logcat_stop = threading.Event()
-    show_help   = False
-
-    threading.Thread(target=adb_watcher, args=(state, stop_evt), daemon=True).start()
-
-    term_w, term_h = shutil.get_terminal_size((120, 40))
-
-    try:
-        with Live(render(state, show_help, term_h, term_w),
-                  console=console, refresh_per_second=4, screen=True) as live:
-            while True:
-                term_w, term_h = shutil.get_terminal_size((120, 40))
-                live.update(render(state, show_help, term_h, term_w))
-                time.sleep(0.05)
-
-                import select
-                if select.select([sys.stdin], [], [], 0.2)[0]:
-                    ch = getch()
-                else:
-                    continue
-
-                # ── Inline input mode ──────────────────────────────────────────
-                if state.input_mode:
-                    if ch in ("\r", "\n"):
-                        state.finish_input(cancelled=False)
-                    elif ch == "\x1b":          # ESC — bare (no trailing chars)
-                        state.finish_input(cancelled=True)
-                        state.status_msg = "Cancelled"
-                    elif ch in ("\x7f", "\x08"): # backspace
-                        state.input_buf = state.input_buf[:-1]
-                    elif len(ch) == 1 and ch.isprintable():
-                        state.input_buf += ch
-                    continue
-
-                # ── Normal mode keybindings ────────────────────────────────────
-
-                # Navigation — file tree
-                if ch in ("j", "\x1b[B"):      # down
-                    state.select_file(state.file_idx + 1)
-                    state.status_msg = f"{state.open_file.name}"
-                    if state.mode == "diff": state.mode = "normal"
-                elif ch in ("k", "\x1b[A"):    # up
-                    state.select_file(state.file_idx - 1)
-                    state.status_msg = f"{state.open_file.name}"
-                    if state.mode == "diff": state.mode = "normal"
-                elif ch in ("\r", "\n"):
-                    state.status_msg = f"Opened {state.open_file.name}"
-
-                # Jump top / bottom of file
-                elif ch == "g":
-                    state.scroll = 0
-                    state.status_msg = "Top of file"
-                elif ch == "G":
-                    state.scroll = max(0, len(state.open_lines) - 5)
-                    state.status_msg = "Bottom of file"
-
-                # Code scroll
-                elif ch in ("f", "\x1b[6~"):   # pgdn
-                    src = state.diff_lines if state.mode == "diff" else state.open_lines
-                    state.scroll = min(state.scroll + 20, max(0, len(src) - 5))
-                elif ch in ("b", "\x1b[5~"):   # pgup
-                    state.scroll = max(0, state.scroll - 20)
-
-                # Build
-                elif ch == "B":
-                    state.status_msg = "Building APK..."
-                    do_build(state)
-
-                # Tests
-                elif ch == "T":
-                    state.status_msg = "Running tests..."
-                    do_test(state)
-
-                # Run on phone
-                elif ch == "R":
-                    if not state.adb_device:
-                        state.status_msg = "⚠ Connect phone — USB debugging ON"
-                    else:
-                        state.status_msg = f"Deploying to {state.adb_device}..."
-                    do_run(state)
-
-                # Logcat
-                elif ch == "L":
-                    if state.adb_device:
-                        logcat_stop.clear()
-                        do_logcat(state, logcat_stop)
-                        state.status_msg = "Streaming logcat — K to stop"
-                    else:
-                        state.status_msg = "No device for logcat"
-
-                # Kill / stop
-                elif ch == "K":
-                    logcat_stop.set()
-                    if hasattr(state, "_logcat_proc"):
-                        try: state._logcat_proc.terminate()
-                        except Exception: pass
-                    state.mode   = "normal"
-                    state.status_msg = "Stopped"
-
-                # Clear log
-                elif ch == "C":
-                    with state.lock:
-                        state.build_log.clear()
-                    state.status_msg = "Log cleared"
-
-                # AI assist — auto prompt
-                elif ch == "A":
-                    state.status_msg = "AI thinking..."
-                    do_ai(state)
-
-                # AI assist — custom question
-                elif ch == "/":
-                    fname = state.open_file.name if state.open_file else "file"
-                    state.start_input(
-                        f"AI question about {fname}:",
-                        lambda q: do_ai(state, question=q),
-                    )
-                    state.status_msg = "Type question, Enter to send, ESC to cancel"
-
-                # Git diff
-                elif ch == "D":
-                    if state.mode == "diff":
-                        state.mode = "normal"
-                        state.status_msg = "Diff closed"
-                    else:
-                        do_diff(state)
-
-                # Open in editor
-                elif ch == "E":
-                    if state.open_file:
-                        editor = os.environ.get("EDITOR", "nano")
-                        live.stop()
-                        subprocess.run([editor, str(state.open_file)])
-                        state._load_file()
-                        live.start()
-
-                # New file scaffold — interactive
-                elif ch == "N":
-                    state.start_input(
-                        "New Kotlin class name:",
-                        lambda name: _scaffold_new_activity(state, name),
-                    )
-                    state.status_msg = "Enter class name, Enter to scaffold, ESC to cancel"
-
-                # Help
-                elif ch == "?":
-                    show_help = not show_help
-
-                # Quit
-                elif ch in ("q", "Q", "\x03"):
-                    break
-
-    except KeyboardInterrupt:
-        pass
-    finally:
-        stop_evt.set()
-        logcat_stop.set()
-        console.print("[bold green]SASHI IDE closed.[/bold green]")
-
-
-def _scaffold_new_activity(state: IDEState, name: str = "SecondActivity"):
-    """Generate a new Kotlin activity then write via gRPC or directly."""
-    # Sanitize: class names must start with uppercase letter
-    name = name.strip()
-    if not name:
-        name = "NewActivity"
-    if not name[0].isupper():
-        name = name[0].upper() + name[1:]
-    # Strip .kt suffix if user typed it
-    if name.endswith(".kt"):
-        name = name[:-3]
-
-    pkg = _get_package(state)
+# ── Scaffold ──────────────────────────────────────────────────────────────────
+def do_new_file(root: Path):
+    name = input("New Kotlin class name: ").strip()
+    if not name: return
+    if not name[0].isupper(): name = name[0].upper() + name[1:]
+    if name.endswith(".kt"): name = name[:-3]
+    pkg = get_package(root)
     content = f"""package {pkg}
 
 import android.os.Bundle
@@ -691,7 +192,7 @@ class {name} : AppCompatActivity() {{
     override fun onCreate(savedInstanceState: Bundle?) {{
         super.onCreate(savedInstanceState)
         val tv = TextView(this).apply {{
-            text = "Hello from {name}\\n\\nGenerated by SASHI IDE v1.1"
+            text = "Hello from {name}\\n\\nGenerated by Sashi Android Studio v2.0"
             textSize = 18f
             setPadding(64, 120, 64, 0)
         }}
@@ -700,12 +201,86 @@ class {name} : AppCompatActivity() {{
 }}
 """
     rel = f"app/src/main/kotlin/{pkg.replace('.', '/')}/{name}.kt"
-    state.log(f"[cyan]▶ Scaffolding {name}.kt...[/cyan]")
-    state.mode = "build"
-    threading.Thread(
-        target=do_new_file, args=(state, rel, content), daemon=True
-    ).start()
+    target = root / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content)
+    console.print(f"[green]✓ Created {rel}[/green]")
 
+# ── Main menu ─────────────────────────────────────────────────────────────────
+def main():
+    import argparse
+    ap = argparse.ArgumentParser(description="Sashi Android Studio — Terminal Android/Kotlin IDE")
+    ap.add_argument("project", nargs="?", default=str(Path.home() / "projects/hello-android"))
+    args = ap.parse_args()
+
+    root = Path(args.project).expanduser().resolve()
+    if not root.exists():
+        console.print(f"[red]Project not found: {root}[/red]"); sys.exit(1)
+
+    files      = scan_files(root)
+    open_file  = files[0] if files else None
+
+    console.print(f"\n[bold green] ⚡ Sashi Android Studio v2.0[/bold green]  [dim]{root}[/dim]")
+    console.print(f"[dim]  {len(files)} files · adb: {'[green]found[/green]' if adb_cmd() else '[yellow]not found[/yellow]'}[/dim]\n")
+
+    MENU = """[bold]MENU[/bold]
+  [cyan]f[/cyan]  browse files        [cyan]v <n>[/cyan]  view file #n
+  [cyan]b[/cyan]  build APK           [cyan]t[/cyan]     run tests
+  [cyan]d[/cyan]  deploy to phone     [cyan]D[/cyan]     git diff
+  [cyan]a[/cyan]  AI assist           [cyan]n[/cyan]     new Kotlin file
+  [cyan]e[/cyan]  open in $EDITOR     [cyan]q[/cyan]     quit"""
+
+    console.print(MENU)
+
+    while True:
+        try:
+            cmd = input("\n[sas]> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        if not cmd:
+            continue
+        elif cmd == "q":
+            break
+        elif cmd == "f":
+            files = scan_files(root)
+            show_files(root, files)
+        elif cmd.startswith("v"):
+            parts = cmd.split()
+            if len(parts) == 2 and parts[1].isdigit():
+                idx = int(parts[1]) - 1
+                if 0 <= idx < len(files):
+                    open_file = files[idx]
+                    view_file(open_file, root)
+                else:
+                    console.print("[red]Invalid file number[/red]")
+            else:
+                console.print("[dim]Usage: v <number>  e.g. v 3[/dim]")
+        elif cmd == "b":
+            do_build(root)
+        elif cmd == "t":
+            do_test(root)
+        elif cmd == "d":
+            do_deploy(root)
+        elif cmd == "D":
+            do_diff(root, open_file)
+        elif cmd == "a":
+            do_ai(open_file)
+        elif cmd == "n":
+            do_new_file(root)
+            files = scan_files(root)
+        elif cmd == "e":
+            if open_file:
+                editor = os.environ.get("EDITOR", "nano")
+                subprocess.run([editor, str(open_file)])
+            else:
+                console.print("[yellow]No file open — use v <n> first[/yellow]")
+        elif cmd in ("?", "h", "help"):
+            console.print(MENU)
+        else:
+            console.print(f"[dim]Unknown command '{cmd}' — type ? for help[/dim]")
+
+    console.print("[bold green]Sashi Android Studio closed.[/bold green]")
 
 if __name__ == "__main__":
     main()
