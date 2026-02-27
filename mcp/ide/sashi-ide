@@ -51,8 +51,19 @@ def run(args, cwd=None, label=""):
     return ok
 
 def adb_cmd():
-    """Return adb binary path — system adb or none."""
-    return shutil.which("adb") or shutil.which("adb.exe")
+    """Return adb binary path — checks PATH then known install locations."""
+    found = shutil.which("adb") or shutil.which("adb.exe")
+    if found:
+        return found
+    candidates = [
+        Path.home() / "Android/platform-tools/adb",
+        Path("/usr/lib/android-sdk/platform-tools/adb"),
+        Path("/opt/android-sdk/platform-tools/adb"),
+    ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return None
 
 def get_package(root: Path) -> str:
     manifest = root / "app/src/main/AndroidManifest.xml"
