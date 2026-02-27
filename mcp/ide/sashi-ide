@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════╗
-║  SASHI IDE v1.0 — Terminal IDE for Android / Kotlin / Flutter   ║
+║  Sashi Android Studio v1.2 — Terminal IDE for Android / Kotlin  ║
 ║  File tree · Syntax highlight · Build · ADB deploy · Logcat     ║
 ║  AI assist (fast-sashi) · Offline-first · gRPC file-write       ║
 ╚══════════════════════════════════════════════════════════════════╝
@@ -64,11 +64,18 @@ class IDEState:
         self.adb_device  = None        # serial or None
         self.adb_status  = "scanning…"
         self.status_msg  = "Ready — press ? for help"
-        self.mode        = "normal"    # normal | build | logcat | ai
+        self.mode        = "normal"    # normal | build | logcat | ai | diff
         self.spinner_on  = False
         self.spinner_txt = ""
         self.ai_resp     = ""
         self.lock        = threading.Lock()
+        # inline input
+        self.input_mode  = False       # True when footer prompt is active
+        self.input_prompt= ""          # e.g. "AI question:" or "New class name:"
+        self.input_buf   = ""          # current typed text
+        self.input_cb    = None        # callable(text) when Enter pressed
+        # diff state
+        self.diff_lines  = []          # raw diff output lines
 
     def log(self, line: str):
         with self.lock:
@@ -100,6 +107,23 @@ class IDEState:
         self.file_idx = max(0, min(idx, len(self.files) - 1))
         self.open_file = self.files[self.file_idx]
         self._load_file()
+
+    def start_input(self, prompt: str, cb):
+        """Enter inline input mode — footer shows a text prompt."""
+        self.input_mode   = True
+        self.input_prompt = prompt
+        self.input_buf    = ""
+        self.input_cb     = cb
+
+    def finish_input(self, cancelled: bool = False):
+        text = self.input_buf
+        self.input_mode   = False
+        self.input_prompt = ""
+        self.input_buf    = ""
+        cb = self.input_cb
+        self.input_cb = None
+        if not cancelled and cb and text.strip():
+            cb(text.strip())
 
 # ── ADB watcher ───────────────────────────────────────────────────────────────
 def adb_watcher(state: IDEState, stop: threading.Event):
@@ -150,6 +174,11 @@ def do_build(state: IDEState):
     state.build_log.clear()
     state.mode = "build"
     run_cmd(state, ["./gradlew", "assembleDebug", "--quiet"], state.root, "gradle assembleDebug")
+
+def do_test(state: IDEState):
+    state.build_log.clear()
+    state.mode = "build"
+    run_cmd(state, ["./gradlew", "test", "--quiet"], state.root, "gradle test")
 
 def do_run(state: IDEState):
     if not state.adb_device:
@@ -241,6 +270,31 @@ def do_ai(state: IDEState, question: str = ""):
             state.spinner_txt = ""
     threading.Thread(target=_ask, daemon=True).start()
 
+def do_diff(state: IDEState):
+    """Show git diff of the currently open file in the code panel."""
+    if not state.open_file:
+        state.status_msg = "No file open for diff"
+        return
+    try:
+        r = subprocess.run(
+            ["git", "diff", "--", str(state.open_file)],
+            capture_output=True, text=True, cwd=str(state.root)
+        )
+        diff_out = r.stdout or "(no unstaged changes)"
+        # Also check staged
+        r2 = subprocess.run(
+            ["git", "diff", "--cached", "--", str(state.open_file)],
+            capture_output=True, text=True, cwd=str(state.root)
+        )
+        if r2.stdout:
+            diff_out = r2.stdout + "\n" + diff_out
+        state.diff_lines = diff_out.splitlines()
+        state.mode = "diff"
+        state.scroll = 0
+        state.status_msg = f"Diff: {state.open_file.name}  (D again or Q to close)"
+    except Exception as e:
+        state.status_msg = f"git diff error: {e}"
+
 def do_new_file(state: IDEState, rel_path: str, content: str):
     """Write a new file via sashi probe write (gRPC) or directly."""
     target = state.root / rel_path
@@ -267,27 +321,32 @@ print('grpc ok' if resp.ok else 'grpc fail')
     state.scan_files()
 
 # ── Rendering ─────────────────────────────────────────────────────────────────
-HELP = """[bold cyan]SASHI IDE — Keybindings[/bold cyan]
+HELP = """[bold cyan]Sashi Android Studio v1.2 — Keybindings[/bold cyan]
 
 [yellow]Navigation[/yellow]
   j / ↓      move file down
   k / ↑      move file up
   Enter      open selected file
+  g          jump to top of file
+  G          jump to bottom of file
   PgDn / f   scroll code down
   PgUp / b   scroll code up
 
 [yellow]Build & Deploy[/yellow]
   B          build APK (gradlew assembleDebug)
   R          build + install + launch on phone
+  T          run tests (gradlew test)
   L          logcat (app output)
   K          kill logcat / stop current process
+  C          clear build/output log
 
 [yellow]AI Assist[/yellow]
-  A          ask AI about current file
-  /          ask custom question (coming soon)
+  A          ask AI about current file (auto prompt)
+  /          ask custom AI question (inline input)
 
 [yellow]Files[/yellow]
-  N          new file from scaffold
+  D          git diff of current file
+  N          new Kotlin file (asks for class name)
   E          open in $EDITOR (vim/nano)
 
 [yellow]Other[/yellow]
@@ -311,15 +370,14 @@ def render(state: IDEState, show_help: bool, term_h: int, term_w: int) -> Layout
     # ── Header ────────────────────────────────────────────────────────────────
     proj = state.root.name
     file_name = state.open_file.name if state.open_file else "—"
-    spin = Spinner("dots").render(time.time()) if state.spinner_on else Text("")
     hdr = Table.grid(expand=True)
     hdr.add_column(justify="left")
     hdr.add_column(justify="center")
     hdr.add_column(justify="right")
     hdr.add_row(
-        Text(f" ⚡ SASHI IDE v1.0  [{proj}]", style="bold green"),
+        Text(f" ⚡ Sashi Android Studio  [{proj}]", style="bold green"),
         Text(f" {file_name}", style="cyan"),
-        Text(f"ADB: {state.adb_status}  v3.2.0 ", style=""),
+        Text.from_markup(f"ADB: {state.adb_status}  v1.2 "),
     )
     layout["header"].update(Panel(hdr, style="bold", box=box.HEAVY_HEAD))
 
@@ -331,7 +389,6 @@ def render(state: IDEState, show_help: bool, term_h: int, term_w: int) -> Layout
     for i, f in enumerate(state.files[vis_start : vis_start + tree_h]):
         abs_i = vis_start + i
         rel   = str(f.relative_to(state.root))
-        # indent depth
         depth = len(f.relative_to(state.root).parts) - 1
         pad   = "  " * depth
         sel   = abs_i == state.file_idx
@@ -344,6 +401,15 @@ def render(state: IDEState, show_help: bool, term_h: int, term_w: int) -> Layout
     # ── Code viewer ────────────────────────────────────────────────────────────
     if show_help:
         layout["code"].update(Panel(Text.from_markup(HELP), title="[bold]HELP[/bold]", border_style="cyan"))
+    elif state.mode == "diff" and state.diff_lines:
+        code_h  = max(4, term_h - 20)
+        visible = state.diff_lines[state.scroll : state.scroll + code_h]
+        syn     = Syntax("\n".join(visible), "diff", theme="monokai", line_numbers=True,
+                         start_line=state.scroll + 1, word_wrap=False)
+        total   = len(state.diff_lines)
+        pct     = int(100 * state.scroll / max(1, total - code_h))
+        title   = f"[bold]DIFF  {state.open_file.relative_to(state.root) if state.open_file else ''}[/bold]  [dim]line {state.scroll+1}/{total} ({pct}%)[/dim]"
+        layout["code"].update(Panel(syn, title=title, border_style="magenta"))
     elif state.open_file:
         code_h   = max(4, term_h - 20)
         ext_map  = {".kt": "kotlin", ".java": "java", ".xml": "xml",
@@ -370,30 +436,52 @@ def render(state: IDEState, show_help: bool, term_h: int, term_w: int) -> Layout
     out_tbl.add_column()
     for line in log_lines:
         out_tbl.add_row(Text.from_markup(line) if "[" in line else Text(line, style="dim"))
-    mode_color = {"build": "yellow", "logcat": "cyan", "normal": "dim"}.get(state.mode, "dim")
+    mode_color = {"build": "yellow", "logcat": "cyan", "diff": "magenta", "normal": "dim"}.get(state.mode, "dim")
     spin_txt   = f"  {state.spinner_txt}" if state.spinner_on else ""
     out_title  = f"[bold {mode_color}]{state.mode.upper()}[/bold {mode_color}]{spin_txt}"
     layout["output"].update(Panel(out_tbl, title=out_title, border_style=mode_color))
 
     # ── Footer ────────────────────────────────────────────────────────────────
-    keys = "[B]uild  [R]un→phone  [L]ogcat  [K]ill  [A]I  [E]dit  [N]ew  [?]help  [Q]uit"
-    ftr  = Table.grid(expand=True)
-    ftr.add_column(justify="left")
-    ftr.add_column(justify="right")
-    ftr.add_row(Text(f" {keys}", style="dim"), Text(f" {state.status_msg}", style="italic cyan"))
-    layout["footer"].update(Panel(ftr, box=box.SIMPLE))
+    if state.input_mode:
+        # Inline input prompt
+        prompt_txt = Text(f" {state.input_prompt}  ", style="bold yellow")
+        input_txt  = Text(state.input_buf + "█", style="bold white")
+        ftr = Table.grid(expand=True)
+        ftr.add_column(justify="left")
+        ftr.add_column(justify="right")
+        ftr.add_row(
+            Text.assemble(prompt_txt, input_txt),
+            Text(" ESC to cancel  Enter to confirm", style="dim"),
+        )
+        layout["footer"].update(Panel(ftr, box=box.SIMPLE, border_style="yellow"))
+    else:
+        keys = "[B]uild  [R]un  [T]est  [L]ogcat  [K]ill  [C]lear  [A]I  [/]ask  [D]iff  [E]dit  [N]ew  [?]help  [Q]uit"
+        ftr  = Table.grid(expand=True)
+        ftr.add_column(justify="left")
+        ftr.add_column(justify="right")
+        ftr.add_row(Text(f" {keys}", style="dim"), Text(f" {state.status_msg}", style="italic cyan"))
+        layout["footer"].update(Panel(ftr, box=box.SIMPLE))
 
     return layout
 
 # ── Input ─────────────────────────────────────────────────────────────────────
 def getch():
-    fd   = sys.stdin.fileno()
-    old  = termios.tcgetattr(fd)
+    fd  = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
-        ch = sys.stdin.read(1)
+        ch = os.read(fd, 1).decode("utf-8", errors="replace")
         if ch == "\x1b":
-            ch += sys.stdin.read(2)
+            import select as _sel
+            if _sel.select([sys.stdin], [], [], 0.05)[0]:
+                ch2 = os.read(fd, 1).decode("utf-8", errors="replace")
+                ch += ch2
+                if ch2 == "[":
+                    ch3 = os.read(fd, 1).decode("utf-8", errors="replace")
+                    ch += ch3
+                    # 4-byte sequences like \x1b[5~ (PgUp) and \x1b[6~ (PgDn)
+                    if ch3.isdigit() and _sel.select([sys.stdin], [], [], 0.05)[0]:
+                        ch += os.read(fd, 1).decode("utf-8", errors="replace")
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
     return ch
@@ -401,7 +489,7 @@ def getch():
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     import argparse, shutil
-    ap = argparse.ArgumentParser(description="SASHI IDE — Terminal Android/Kotlin IDE")
+    ap = argparse.ArgumentParser(description="Sashi Android Studio — Terminal Android/Kotlin IDE")
     ap.add_argument("project", nargs="?", default=str(Path.home() / "projects/hello-android"),
                     help="Path to Android/Kotlin project (default: ~/projects/hello-android)")
     args = ap.parse_args()
@@ -412,18 +500,17 @@ def main():
 
     state = IDEState(root)
     state.scan_files()
-    state.log(f"[bold green]SASHI IDE v1.0[/bold green]  [{root.name}]")
+    state.log(f"[bold green]Sashi Android Studio v1.2[/bold green]  [{root.name}]")
     state.log(f"  JAVA_HOME: {JAVA_HOME}")
     state.log(f"  ADB:       {ADB}")
     state.log(f"  Project:   {root}")
     state.log("")
     state.log("[dim]Press B to build, R to run on phone, ? for full help[/dim]")
 
-    stop_evt  = threading.Event()
+    stop_evt    = threading.Event()
     logcat_stop = threading.Event()
-    show_help = False
+    show_help   = False
 
-    # Start ADB watcher
     threading.Thread(target=adb_watcher, args=(state, stop_evt), daemon=True).start()
 
     term_w, term_h = shutil.get_terminal_size((120, 40))
@@ -436,40 +523,66 @@ def main():
                 live.update(render(state, show_help, term_h, term_w))
                 time.sleep(0.05)
 
-                # Non-blocking key check
                 import select
                 if select.select([sys.stdin], [], [], 0.2)[0]:
                     ch = getch()
                 else:
                     continue
 
-                # Navigation
-                if ch in ("j", "\x1b[B"):   # down
+                # ── Inline input mode ──────────────────────────────────────────
+                if state.input_mode:
+                    if ch in ("\r", "\n"):
+                        state.finish_input(cancelled=False)
+                    elif ch == "\x1b":          # ESC — bare (no trailing chars)
+                        state.finish_input(cancelled=True)
+                        state.status_msg = "Cancelled"
+                    elif ch in ("\x7f", "\x08"): # backspace
+                        state.input_buf = state.input_buf[:-1]
+                    elif len(ch) == 1 and ch.isprintable():
+                        state.input_buf += ch
+                    continue
+
+                # ── Normal mode keybindings ────────────────────────────────────
+
+                # Navigation — file tree
+                if ch in ("j", "\x1b[B"):      # down
                     state.select_file(state.file_idx + 1)
                     state.status_msg = f"{state.open_file.name}"
-                elif ch in ("k", "\x1b[A"): # up
+                    if state.mode == "diff": state.mode = "normal"
+                elif ch in ("k", "\x1b[A"):    # up
                     state.select_file(state.file_idx - 1)
                     state.status_msg = f"{state.open_file.name}"
-                elif ch in ("\r", "\n"):     # enter — already selected on j/k
+                    if state.mode == "diff": state.mode = "normal"
+                elif ch in ("\r", "\n"):
                     state.status_msg = f"Opened {state.open_file.name}"
 
+                # Jump top / bottom of file
+                elif ch == "g":
+                    state.scroll = 0
+                    state.status_msg = "Top of file"
+                elif ch == "G":
+                    state.scroll = max(0, len(state.open_lines) - 5)
+                    state.status_msg = "Bottom of file"
+
                 # Code scroll
-                elif ch in ("f", "\x1b[6~"):  # pgdn
-                    state.scroll = min(state.scroll + 20, max(0, len(state.open_lines) - 5))
-                elif ch in ("b", "\x1b[5~"):  # pgup
+                elif ch in ("f", "\x1b[6~"):   # pgdn
+                    src = state.diff_lines if state.mode == "diff" else state.open_lines
+                    state.scroll = min(state.scroll + 20, max(0, len(src) - 5))
+                elif ch in ("b", "\x1b[5~"):   # pgup
                     state.scroll = max(0, state.scroll - 20)
-                elif ch == "\x1b[B" and state.mode == "code":
-                    state.scroll = min(state.scroll + 3, max(0, len(state.open_lines) - 5))
-                elif ch == "\x1b[A" and state.mode == "code":
-                    state.scroll = max(0, state.scroll - 3)
 
                 # Build
-                elif ch in ("B",):
+                elif ch == "B":
                     state.status_msg = "Building APK..."
                     do_build(state)
 
+                # Tests
+                elif ch == "T":
+                    state.status_msg = "Running tests..."
+                    do_test(state)
+
                 # Run on phone
-                elif ch in ("R",):
+                elif ch == "R":
                     if not state.adb_device:
                         state.status_msg = "⚠ Connect phone — USB debugging ON"
                     else:
@@ -477,7 +590,7 @@ def main():
                     do_run(state)
 
                 # Logcat
-                elif ch in ("L",):
+                elif ch == "L":
                     if state.adb_device:
                         logcat_stop.clear()
                         do_logcat(state, logcat_stop)
@@ -486,7 +599,7 @@ def main():
                         state.status_msg = "No device for logcat"
 
                 # Kill / stop
-                elif ch in ("K",):
+                elif ch == "K":
                     logcat_stop.set()
                     if hasattr(state, "_logcat_proc"):
                         try: state._logcat_proc.terminate()
@@ -494,13 +607,36 @@ def main():
                     state.mode   = "normal"
                     state.status_msg = "Stopped"
 
-                # AI assist
-                elif ch in ("A",):
+                # Clear log
+                elif ch == "C":
+                    with state.lock:
+                        state.build_log.clear()
+                    state.status_msg = "Log cleared"
+
+                # AI assist — auto prompt
+                elif ch == "A":
                     state.status_msg = "AI thinking..."
                     do_ai(state)
 
+                # AI assist — custom question
+                elif ch == "/":
+                    fname = state.open_file.name if state.open_file else "file"
+                    state.start_input(
+                        f"AI question about {fname}:",
+                        lambda q: do_ai(state, question=q),
+                    )
+                    state.status_msg = "Type question, Enter to send, ESC to cancel"
+
+                # Git diff
+                elif ch == "D":
+                    if state.mode == "diff":
+                        state.mode = "normal"
+                        state.status_msg = "Diff closed"
+                    else:
+                        do_diff(state)
+
                 # Open in editor
-                elif ch in ("E",):
+                elif ch == "E":
                     if state.open_file:
                         editor = os.environ.get("EDITOR", "nano")
                         live.stop()
@@ -508,13 +644,16 @@ def main():
                         state._load_file()
                         live.start()
 
-                # New file scaffold
-                elif ch in ("N",):
-                    state.status_msg = "Scaffold: creating new Kotlin activity..."
-                    _scaffold_new_activity(state)
+                # New file scaffold — interactive
+                elif ch == "N":
+                    state.start_input(
+                        "New Kotlin class name:",
+                        lambda name: _scaffold_new_activity(state, name),
+                    )
+                    state.status_msg = "Enter class name, Enter to scaffold, ESC to cancel"
 
                 # Help
-                elif ch in ("?",):
+                elif ch == "?":
                     show_help = not show_help
 
                 # Quit
@@ -529,10 +668,19 @@ def main():
         console.print("[bold green]SASHI IDE closed.[/bold green]")
 
 
-def _scaffold_new_activity(state: IDEState):
-    """Generate a new Kotlin activity using fast-sashi then write via gRPC."""
+def _scaffold_new_activity(state: IDEState, name: str = "SecondActivity"):
+    """Generate a new Kotlin activity then write via gRPC or directly."""
+    # Sanitize: class names must start with uppercase letter
+    name = name.strip()
+    if not name:
+        name = "NewActivity"
+    if not name[0].isupper():
+        name = name[0].upper() + name[1:]
+    # Strip .kt suffix if user typed it
+    if name.endswith(".kt"):
+        name = name[:-3]
+
     pkg = _get_package(state)
-    name = "SecondActivity"
     content = f"""package {pkg}
 
 import android.os.Bundle
@@ -543,7 +691,7 @@ class {name} : AppCompatActivity() {{
     override fun onCreate(savedInstanceState: Bundle?) {{
         super.onCreate(savedInstanceState)
         val tv = TextView(this).apply {{
-            text = "Hello from {name}\\n\\nGenerated by SASHI IDE + fast-sashi"
+            text = "Hello from {name}\\n\\nGenerated by SASHI IDE v1.1"
             textSize = 18f
             setPadding(64, 120, 64, 0)
         }}
@@ -552,7 +700,8 @@ class {name} : AppCompatActivity() {{
 }}
 """
     rel = f"app/src/main/kotlin/{pkg.replace('.', '/')}/{name}.kt"
-    state.log(f"[cyan]▶ Scaffolding {name}.kt via gRPC probe write...[/cyan]")
+    state.log(f"[cyan]▶ Scaffolding {name}.kt...[/cyan]")
+    state.mode = "build"
     threading.Thread(
         target=do_new_file, args=(state, rel, content), daemon=True
     ).start()

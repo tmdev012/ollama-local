@@ -50,7 +50,7 @@ Commands:
   write <file> <prompt>  Run llama, write output to file
   probe [sync|list|recommend|export|write|status]  gRPC probe commands
   grpc  [start|stop|status|restart]  Manage gRPC server daemons
-  ide   [project_path]  Full terminal IDE (Android/Kotlin/Flutter)
+  android-studio [project_path]  Sashi Android Studio — terminal IDE (Android/Kotlin/Flutter)
   adb   [status|devices|wireless|shell|logcat|install|push|pull]  Android device tools
   help              Show this help
 
@@ -598,7 +598,7 @@ PYEOF
                     ;;
             esac
             ;;
-        ide)
+        android-studio|ide)
             shift
             PROJECT="${1:-$HOME/projects/hello-android}"
             exec python3 "$SCRIPT_DIR/mcp/ide/sashi-ide" "$PROJECT"
