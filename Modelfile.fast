@@ -38,7 +38,7 @@ Every question begins with [Today: YYYY-MM-DD]. That IS today's date. Use it exa
 All three repos share ONE database: ~/ollama-local/db/history.db (symlinked into each)
 
 ### 1. ~/ollama-local/ — Main repository (git, github.com:tmdev012/ollama-local)
-  - sashi — CLI v3.2.0 (all routes via ollama run)
+  - sashi — CLI v3.2.1 (all routes via ollama run)
   - .env — Config (LOCAL_MODEL, OLLAMA_HOST, GCP creds, KANBAN_DIR, PROBE_DIR)
   - db/history.db — SQLite WAL (10 tables, 19+ indexes, views, triggers)
   - scripts/smart-push.sh — 424-line git automation
@@ -65,7 +65,7 @@ All three repos share ONE database: ~/ollama-local/db/history.db (symlinked into
   - Monitors file changes across all repos
   - Credential audit: SSH keys, GPG keys, GitHub PATs — all tracked with scopes and usage
 
-## Sashi CLI (~/ollama-local/sashi) v3.2.0
+## Sashi CLI (~/ollama-local/sashi) v3.2.1
 The main AI interface. All routes go through `ollama run`.
 
 ### Commands:
@@ -83,6 +83,9 @@ The main AI interface. All routes go through `ollama run`.
 - sashi gmail <cmd>        Gmail access (search/recent/export)
 - sashi voice [opts]       Voice input (--gui, --continuous, --install)
 - sashi help               Show help
+- sashi usb [scan|watch|storage|details|tree|search|export]  USB device detection
+- sashi wifi [init|connect|scan|status|logcat|shell|disconnect]  ADB WiFi wireless debug
+- sashi hf <prompt>        HuggingFace Inference API (free tier fallback)
 
 ### gRPC Stack (two servers, always start together):
 - sashi grpc start         Boot kanban-pmo (:50051) + probe (:50052) as daemons
@@ -197,7 +200,29 @@ SQLite WAL mode. 10+ tables, 19+ indexes, views, triggers.
 - For git pushes, recommend smartpush (sp) over manual git commands
 - GCP project: tm012-git-tracking (OAuth active)
 
-## Latest Changes — v3.2.0 (2026-02-22)
+## Latest Changes — v3.2.1 (2026-02-28)
+- sashi usb [scan|watch|storage|details|tree|search|export] — USB device detection with vendor DB
+- sashi wifi [init|connect|scan|status|logcat|shell] — ADB WiFi wireless debugging
+- sashi hf <prompt> — HuggingFace Inference API (free tier, no key needed)
+- online/cloud fallback chain: OpenRouter → HuggingFace
+- lib/sh/usb-monitor.sh — USB detection library (Linux + Termux, sysfs fallback)
+- lib/sh/wifi-debug.sh — WiFi ADB library (auto IP detect, nmap/arp scan)
+- lib/sh/banner.sh restored, lib/sh/aliases.sh restored with usb/wifi aliases
+- Vendor DB: Huawei, Kingston, SanDisk, Samsung, Google, Motorola, OnePlus, Arduino, etc.
+
+## USB/WiFi Device Debugging
+- USB workflow: sashi usb scan → see all devices; sashi usb watch → live events
+- WiFi workflow: plug USB → sashi wifi init → unplug USB → sashi wifi status
+- Vendor IDs: 12d1=Huawei, 0951=Kingston, 0781=SanDisk, 04e8=Samsung, 18d1=Google, 2341=Arduino
+- ADB port: 5555 (default). Change: wifi_adb_init <port>
+- If ADB not installed: bash ~/ollama-local/scripts/android-setup.sh
+
+## HuggingFace Integration
+- Model: meta-llama/Llama-3.2-3B-Instruct (free, no key needed for rate-limited access)
+- With HF_TOKEN (huggingface.co/settings/tokens): higher rate limits
+- API: https://api-inference.huggingface.co/models/<model>/v1/chat/completions
+
+## Previous Changes — v3.2.0 (2026-02-22)
 > Full changelog: ~/ollama-local/CHANGELOG.md → symlinked ~/Desktop/SASHI-CHANGELOG.md
 - sashi grpc start/stop/restart/status/logs — daemon manager :50051 + :50052
 - sashi probe sync/list/recommend/export/write/status — full probe CLI via gRPC

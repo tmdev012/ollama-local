@@ -8,8 +8,10 @@ source "$SCRIPT_DIR/.env" 2>/dev/null || true
 # Termux override: use lighter model on Android
 [[ -n "$TERMUX_VERSION" || -d "/data/data/com.termux" ]] && source "$SCRIPT_DIR/.env.termux" 2>/dev/null || true
 source "$SCRIPT_DIR/lib/sh/banner.sh" 2>/dev/null || true
+source "$SCRIPT_DIR/lib/sh/usb-monitor.sh" 2>/dev/null || true
+source "$SCRIPT_DIR/lib/sh/wifi-debug.sh" 2>/dev/null || true
 
-VERSION="3.2.0"
+VERSION="3.2.1"
 DB_PATH="${SASHI_DB:-$SCRIPT_DIR/db/history.db}"
 MODEL="${LOCAL_MODEL:-llama3.2}"
 OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
@@ -52,6 +54,9 @@ Commands:
   grpc  [start|stop|status|restart]  Manage gRPC server daemons
   android-studio [project_path]  Sashi Android Studio — terminal IDE (Android/Kotlin/Flutter)
   adb   [status|devices|wireless|shell|logcat|install|push|pull]  Android device tools
+  usb   [scan|watch|storage|details|tree|search|export]  USB device detection
+  wifi  [init|connect|scan|status|logcat|shell|disconnect]  ADB WiFi wireless debug
+  hf    <prompt>    HuggingFace Inference API (online, free tier)
   help              Show this help
 
 Pipe support:
@@ -103,13 +108,51 @@ code_query() {
     llama_query "$prompt"
 }
 
-# Online query via OpenRouter (free cloud models)
+# HuggingFace Inference API query (free tier)
+hf_query() {
+    local prompt="$1"
+    local model="${HF_MODEL:-meta-llama/Llama-3.2-3B-Instruct}"
+    local api_url="https://api-inference.huggingface.co/models/${model}/v1/chat/completions"
+    local start_time=$(date +%s%3N)
+
+    echo -e "${BLUE}HuggingFace${NC} ($model)"
+
+    local escaped_prompt
+    escaped_prompt=$(printf '%s' "$prompt" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')
+
+    local auth_header="Content-Type: application/json"
+    if [ -n "$HF_TOKEN" ]; then
+        auth_header="Authorization: Bearer $HF_TOKEN"
+    fi
+
+    curl -sN "$api_url" \
+        -H "Content-Type: application/json" \
+        ${HF_TOKEN:+-H "Authorization: Bearer $HF_TOKEN"} \
+        -d "{\"model\":\"$model\",\"messages\":[{\"role\":\"user\",\"content\":$escaped_prompt}],\"stream\":true,\"max_tokens\":512}" \
+        2>/dev/null | while IFS= read -r line; do
+            line="${line#data: }"
+            [ "$line" = "[DONE]" ] && break
+            [ -z "$line" ] && continue
+            printf '%s' "$line" | python3 -c 'import sys,json
+try:
+    d=json.load(sys.stdin)
+    c=d.get("choices",[{}])[0].get("delta",{}).get("content","")
+    if c: print(c,end="",flush=True)
+except: pass' 2>/dev/null
+        done
+    echo ""
+
+    local duration=$(( $(date +%s%3N) - start_time ))
+    log_query "huggingface:$model" "$prompt" "0" "$duration"
+}
+
+# Online query via OpenRouter (free cloud models), falls back to HuggingFace
 online_query() {
     local prompt="$1"
     if [ -z "$OPENROUTER_API_KEY" ]; then
-        echo -e "${RED}OpenRouter not configured. Add OPENROUTER_API_KEY to ~/ollama-local/.env${NC}"
-        echo "Get a free key at: https://openrouter.ai/keys"
-        return 1
+        echo -e "${YELLOW}OpenRouter not configured — trying HuggingFace...${NC}"
+        hf_query "$prompt"
+        return $?
     fi
 
     local model="${OPENROUTER_MODEL:-meta-llama/llama-3.1-8b-instruct:free}"
@@ -174,7 +217,15 @@ show_status() {
     if [ -n "$OPENROUTER_API_KEY" ]; then
         echo -e "Online:    ${GREEN}Configured${NC} (${OPENROUTER_MODEL:-meta-llama/llama-3.1-8b-instruct:free})"
     else
-        echo -e "Online:    ${YELLOW}Not configured${NC} (set OPENROUTER_API_KEY in .env)"
+        echo -e "Online:    ${YELLOW}OpenRouter: unset${NC} → HuggingFace fallback ${GREEN}ready${NC}"
+    fi
+
+    # USB/WiFi status
+    if type usb_statusline &>/dev/null; then
+        echo -e "USB:       $(usb_statusline)"
+    fi
+    if type wifi_statusline &>/dev/null; then
+        echo -e "WiFi ADB:  $(wifi_statusline)"
     fi
 
     # Detect environment
@@ -665,6 +716,69 @@ PYEOF
                     echo "Usage: sashi adb [status|devices|wireless|shell|logcat|install|push|pull]"
                     ;;
             esac
+            ;;
+        usb)
+            shift
+            subcmd="${1:-scan}"
+            shift || true
+            if ! type usb_list &>/dev/null; then
+                echo -e "${RED}USB library not loaded${NC}"
+                exit 1
+            fi
+            case "$subcmd" in
+                scan|list)   usb_list ;;
+                watch)       usb_watch_events "${1:-0}" ;;
+                storage)     usb_storage ;;
+                details)     usb_details "${1:-}" ;;
+                tree)        usb_tree ;;
+                search)      usb_search "${1:-}" ;;
+                export)      usb_export "${1:-}" ;;
+                monitor)     usb_watch_events 0 ;;
+                *)
+                    echo "Usage: sashi usb [scan|watch|storage|details|tree|search|export|monitor]"
+                    echo "  scan      List all USB devices with vendor names"
+                    echo "  watch     Monitor plug/unplug events (Ctrl+C to stop)"
+                    echo "  storage   Show USB storage devices + mount points"
+                    echo "  details   Verbose info: sashi usb details <vid:pid>"
+                    echo "  tree      USB device hierarchy"
+                    echo "  search    Search by name: sashi usb search samsung"
+                    echo "  export    Export snapshot to JSONL"
+                    ;;
+            esac
+            ;;
+        wifi)
+            shift
+            subcmd="${1:-status}"
+            shift || true
+            if ! type wifi_adb_status &>/dev/null; then
+                echo -e "${RED}WiFi library not loaded${NC}"
+                exit 1
+            fi
+            case "$subcmd" in
+                init)        wifi_adb_init "${1:-}" ;;
+                connect)     wifi_adb_connect "${1:-}" "${2:-}" ;;
+                scan)        wifi_adb_scan ;;
+                status)      wifi_adb_status ;;
+                logcat)      wifi_adb_logcat "${1:-}" ;;
+                shell)       wifi_adb_shell "$@" ;;
+                disconnect)  wifi_adb_disconnect "${1:-}" ;;
+                *)
+                    echo "Usage: sashi wifi [init|connect|scan|status|logcat|shell|disconnect]"
+                    echo "  init          Enable WiFi ADB (USB must be plugged in first)"
+                    echo "  connect <ip>  Connect to device at IP"
+                    echo "  scan          Scan LAN for Android devices"
+                    echo "  status        Show connected wireless devices"
+                    echo "  logcat [tag]  Stream logcat over WiFi"
+                    echo "  shell [cmd]   ADB shell over WiFi"
+                    echo "  disconnect    Disconnect all wireless ADB"
+                    ;;
+            esac
+            ;;
+        hf)
+            shift
+            prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"
+            [ -z "$prompt" ] && { echo "Usage: sashi hf <prompt>"; exit 1; }
+            hf_query "$prompt"
             ;;
     *)
         prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"
