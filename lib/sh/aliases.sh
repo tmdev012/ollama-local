@@ -1,7 +1,7 @@
 #!/bin/bash
 # aliases.sh — Single source of all sashi shell aliases
 # Source from .bashrc / .zshrc:  source ~/ollama-local/lib/sh/aliases.sh
-# sashi v3.2.1
+# sashi v3.2.2
 
 _SASHI_DIR="${_SASHI_DIR:-$HOME/ollama-local}"
 
@@ -88,5 +88,70 @@ alias aihelp='$_SASHI_DIR/sashi help'
 
 # ── IDE ───────────────────────────────────────────────────────────────
 alias side='$_SASHI_DIR/sashi android-studio'
+
+
+# ── Advanced Filesystem — Find & Filter ──────────────────────────────
+alias ff='find . -type f -name'                        # ff "*.log"
+alias ffd='find . -type d -name'                       # ffd "build*"
+alias ffl='find . -type l'                             # list all symlinks
+alias fmod='find . -type f -mmin'                      # fmod -60 (last 60 min)
+alias fsize='find . -type f -size'                     # fsize +100M
+alias fnew='find . -type f -newer'                     # fnew ref-file
+alias fdup='find . ! -empty -type f -exec md5sum {} + | sort | uniq -w32 -dD'  # find duplicates
+alias fempty='find . -type f -empty'                   # find zero-byte files
+alias fdangling='find . -type l ! -exec test -e {} \; -print'  # broken symlinks
+
+# ── Advanced Filesystem — Disk Analysis ──────────────────────────────
+alias duh='du -sh * 2>/dev/null | sort -rh'            # sizes sorted, current dir
+alias dua='du -ah --max-depth=1 2>/dev/null | sort -rh' # all entries depth 1
+alias dut='du -sh */ 2>/dev/null | sort -rh'           # dirs only, sorted
+alias dfh='df -hT --exclude-type=tmpfs --exclude-type=devtmpfs'  # real disks only
+alias dfio='df -i'                                     # inode usage
+
+# ── Advanced Filesystem — Directory Listing ───────────────────────────
+alias lsl='ls -lahF --color=always'                    # full listing
+alias lst='ls -lath --color=always'                    # sorted by modified time
+alias lsz='ls -laSh --color=always'                    # sorted by size desc
+alias lsd='ls -lah --group-directories-first --color=always'  # dirs first
+alias lsr='ls -lahR --color=always'                    # recursive listing
+
+# ── Advanced Filesystem — Archive Operations ──────────────────────────
+alias tarc='tar -czf'                                  # tarc out.tar.gz dir/
+alias tarx='tar -xzf'                                  # tarx archive.tar.gz
+alias tarxv='tar -xzvf'                                # extract verbose
+alias tarl='tar -tzf'                                  # list contents
+alias tarbz='tar -cjf'                                 # bzip2 compress
+alias zipr='zip -r'                                    # zip recursively
+
+# ── Advanced Filesystem — Copy / Move / Delete ────────────────────────
+alias cpv='rsync -ah --progress'                       # cp with progress bar
+alias cpvr='rsync -ahr --progress --delete'            # mirror dir with progress
+alias mvv='mv -v'                                      # move verbose
+alias rmv='rm -iv'                                     # rm interactive + verbose
+alias rmrf='rm -rf'                                    # rm -rf (explicit intent)
+
+# ── Advanced Filesystem — Permissions & Ownership ─────────────────────
+alias chmodr='chmod -R'                                # recursive chmod
+alias chownr='chown -R'                                # recursive chown
+alias mkexec='chmod +x'                                # make file executable
+alias fixperms='find . -type f -exec chmod 644 {} \; && find . -type d -exec chmod 755 {} \;'
+
+# ── Advanced Filesystem — Symlink Management ──────────────────────────
+alias lnr='ln -sr'                                     # create relative symlink
+alias lna='ln -sf'                                     # create/force absolute symlink
+alias lslinks='find . -type l -exec ls -lah {} \;'    # show all symlinks + targets
+
+# ── Advanced Filesystem — Checksum & Compare ─────────────────────────
+alias fhash='sha256sum'                                # hash a file
+alias fcheck='sha256sum -c'                            # verify checksum file
+alias mdiff='diff -rq'                                 # compare two directories
+alias mdiffu='diff -ru'                                # unified diff of dirs
+
+# ── Advanced Filesystem — Watch & Monitor ────────────────────────────
+alias fwatch='watch -n1 "ls -lah"'                    # watch dir listing every 1s
+alias fwatchp='inotifywait -rm -e modify,create,delete,move'  # inotify on path
+
+# ── Sashi WAL log ─────────────────────────────────────────────────────
+alias swallog='$_SASHI_DIR/sashi wallog'               # Modelfile ↔ SQL WAL changelog
 
 export _SASHI_DIR

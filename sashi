@@ -362,6 +362,53 @@ case "${1:-help}" in
             echo "No CHANGELOG.md found at $CHANGELOG"
         fi
         ;;
+    wallog)
+        shift
+        LIMIT="${1:-10}"
+        DB="$SCRIPT_DIR/db/history.db"
+        BOLD="\033[1m" CYAN="\033[36m" YELLOW="\033[33m" GREEN="\033[32m" DIM="\033[2m" NC="\033[0m"
+
+        echo -e "\n${BOLD}${CYAN}══ Modelfile Changes (git log) ══${NC}"
+        cd "$SCRIPT_DIR" && {
+            git log --oneline --follow -- Modelfile.fast 2>/dev/null | sed 's/^/  [fast] /'
+            git log --oneline --follow -- Modelfile.8b  2>/dev/null | sed 's/^/  [ 8b ] /'
+        } | sort -k3 -r | head -"$LIMIT" \
+          | while read -r line; do
+              hash=$(echo "$line" | awk '{print $2}')
+              rest=$(echo "$line" | cut -d' ' -f3-)
+              tag=$(echo "$line" | awk '{print $1}')
+              echo -e "  ${tag} ${YELLOW}${hash}${NC}  ${rest}"
+            done
+
+        echo -e "\n${BOLD}${CYAN}══ SQL changelog table (history.db) ══${NC}"
+        if [ -f "$DB" ]; then
+            sqlite3 -separator ' | ' "$DB" \
+                "SELECT version, date, summary FROM changelog ORDER BY id DESC LIMIT ${LIMIT};" 2>/dev/null \
+                | while IFS='|' read -r line; do
+                    echo -e "  ${GREEN}${line}${NC}"
+                  done || echo -e "  ${DIM}(no rows)${NC}"
+        else
+            echo -e "  ${DIM}DB not found: $DB${NC}"
+        fi
+
+        echo -e "\n${BOLD}${CYAN}══ SQL commits table (history.db) ══${NC}"
+        if [ -f "$DB" ]; then
+            sqlite3 -separator ' | ' "$DB" \
+                "SELECT hash, version_tag, timestamp, message FROM commits ORDER BY id DESC LIMIT ${LIMIT};" 2>/dev/null \
+                | while IFS='|' read -r line; do
+                    echo -e "  ${DIM}${line}${NC}"
+                  done || echo -e "  ${DIM}(no rows)${NC}"
+        fi
+
+        echo -e "\n${BOLD}${CYAN}══ WAL checkpoint status ══${NC}"
+        if [ -f "$DB" ]; then
+            result=$(sqlite3 "$DB" "PRAGMA wal_checkpoint(PASSIVE);" 2>/dev/null)
+            echo -e "  ${DIM}checkpoint(busy|log|checkpointed): ${result}${NC}"
+            wal_size=$(stat -c%s "${DB}-wal" 2>/dev/null || echo 0)
+            echo -e "  ${DIM}WAL file size: ${wal_size} bytes${NC}"
+        fi
+        echo ""
+        ;;
     models)
         ollama list 2>/dev/null || echo "Ollama not running"
         ;;
