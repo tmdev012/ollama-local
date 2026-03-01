@@ -3,6 +3,33 @@
 
 ---
 
+## v3.2.2 — 2026-03-01
+
+### Added
+- `sashi wallog [N]` — unified Modelfile ↔ SQL WAL change log in one command:
+  - Section 1: git log on `Modelfile.fast` + `Modelfile.8b` (tagged [fast]/[8b])
+  - Section 2: `changelog` table from history.db (version/date/summary)
+  - Section 3: `commits` table from history.db (hash/tag/timestamp/message)
+  - Section 4: WAL checkpoint status + WAL file size
+- 30 advanced filesystem aliases in `lib/sh/aliases.sh` across 9 categories:
+  - **Find/Filter**: `ff` `ffd` `ffl` `fmod` `fsize` `fnew` `fdup` `fempty` `fdangling`
+  - **Disk**: `duh` `dua` `dut` `dfh` `dfio`
+  - **Listing**: `lsl` `lst` `lsz` `lsd` `lsr`
+  - **Archive**: `tarc` `tarx` `tarxv` `tarl` `tarbz` `zipr`
+  - **Copy/Move/Delete**: `cpv` `cpvr` `mvv` `rmv` `rmrf`
+  - **Permissions**: `chmodr` `chownr` `mkexec` `fixperms`
+  - **Symlinks**: `lnr` `lna` `lslinks`
+  - **Checksum/Compare**: `fhash` `fcheck` `mdiff` `mdiffu`
+  - **Watch**: `fwatch` `fwatchp`
+- `swallog` — short alias for `sashi wallog`
+
+### Changed
+- VERSION: 3.2.1 → 3.2.2
+- SVGs bumped to v3.2.2: `bdpm-swimlanes.svg`, `gazette-architecture.svg`, `process-map-animated.svg`
+- README updated: version badge, all v3.2.0 refs, aliases reference section
+
+---
+
 ## v3.2.1 — 2026-03-01
 
 ### Added

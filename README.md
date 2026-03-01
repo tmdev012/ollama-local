@@ -3,7 +3,7 @@
 > Local-first AI assistant powered by Ollama/Llama. Privacy-first, no data leaves your machine. Runs on modest hardware (i7, 8GB RAM, no GPU). Optional cloud fallback via OpenRouter.
 
 [![GitHub](https://img.shields.io/badge/GitHub-tmdev012%2Follama--local-blue)](https://github.com/tmdev012/ollama-local)
-[![Version](https://img.shields.io/badge/version-3.2.0-green)]()
+[![Version](https://img.shields.io/badge/version-3.2.2-green)]()
 [![License](https://img.shields.io/badge/license-MIT-yellow)]()
 
 ---
@@ -37,7 +37,7 @@ SASHI routes all queries through `ollama run` (native CLI, streaming, model stay
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     SASHI v3.2.0                             │
+│                     SASHI v3.2.2                             │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
 │  │ Router  │→ │ Logger  │→ │ History │→ │ Output  │        │
 │  └─────────┘  └─────────┘  └─────────┘  └─────────┘        │
@@ -127,7 +127,7 @@ The bottleneck is memory bandwidth, not CPU clock. This is the ceiling for this 
 
 ## Architecture
 
-### BDPM Governance Layer (v3.2.0)
+### BDPM Governance Layer (v3.2.2)
 
 The 4-layer BDPM governance model spans both repos. See the full swimlane diagram in [`kanban-pmo/docs/diagrams/bdpm-swimlanes.svg`](../kanban-pmo/docs/diagrams/bdpm-swimlanes.svg):
 
@@ -144,7 +144,7 @@ The 4-layer BDPM governance model spans both repos. See the full swimlane diagra
 
 ```
 ollama-local/
-├── sashi                    # Main CLI (v3.2.0)
+├── sashi                    # Main CLI (v3.2.2)
 ├── .env                     # Config (LOCAL_MODEL, OLLAMA_HOST)
 ├── .env.termux              # Termux override (llama3.2:1b)
 ├── Modelfile.fast            # 3B fast model (concise system prompt, default)
@@ -170,7 +170,9 @@ ollama-local/
 ├── lib/
 │   └── sh/
 │       ├── banner.sh        # sashi_banner() ASCII art — sourced by all tools
-│       └── aliases.sh       # Shell aliases (s8b, skanban, etc.)
+│       ├── aliases.sh       # Shell aliases — 80+ total incl. 30 filesystem (v3.2.2)
+│       ├── usb-monitor.sh   # USB vendor DB + sysfs scanner
+│       └── wifi-debug.sh    # ADB WiFi library
 │
 ├── scripts/
 │   ├── smart-push.sh        # 424-line git automation
@@ -422,7 +424,19 @@ gissue 42              # Find commits by issue number
 | v2.0 | 2026-02-05 | HTTP API optimization, 5-8s→2.2s, voice, 22 clean aliases |
 | v3.0 | 2026-02-08 | Back to `ollama run` (streams, keeps model hot), DeepSeek removed |
 | v3.1 | 2026-02-19 | banner.sh, aliases.sh, kanban subcommand, smart-push, gRPC stubs |
-| **v3.2** | **2026-02-22** | **gRPC daemon manager, probe CLI, IDE, 8B routing, 245 training dialogs** |
+| v3.2.0 | 2026-02-22 | gRPC daemon manager, probe CLI, IDE, 8B routing, 245 training dialogs |
+| v3.2.1 | 2026-03-01 | `sashi usb/wifi/hf`, USB vendor DB, WiFi ADB, HuggingFace fallback |
+| **v3.2.2** | **2026-03-01** | **30 advanced filesystem aliases, `sashi wallog` (Modelfile ↔ WAL log)** |
+
+### v3.2.1→v3.2.2 Changes
+
+| Aspect | v3.2.1 | v3.2.2 |
+|--------|--------|--------|
+| **Filesystem aliases** | none | **30 aliases** across 9 categories (find/disk/list/archive/copy/perms/symlink/checksum/watch) |
+| **WAL log command** | none | **`sashi wallog [N]`** — Modelfile git log + SQL changelog + commits + WAL checkpoint |
+| **Alias shortcut** | — | **`swallog`** |
+| **SVGs** | v3.2.0 labels | **v3.2.2** across bdpm-swimlanes, gazette-architecture, process-map |
+| **Router label** | v2.0 | **v3.2.2** (process-map-animated.svg) |
 
 ### v3.1→v3.2 Changes
 
@@ -582,14 +596,111 @@ CREATE INDEX idx_commits_timestamp ON commits(timestamp);
 | `s` | `sashi` | Main interface |
 | `sask` | `sashi ask` | Quick question (local 3B) |
 | `s8b` | `sashi 8b` | 8B quality route |
+| `shf` | `sashi hf` | HuggingFace Inference API (free tier) |
 | `scode` | `sashi code` | Code help (local llama) |
 | `slocal` | `sashi local` | Same as ask |
 | `schat` | `sashi chat` | Interactive chat |
 | `sstatus` | `sashi status` | System status + gRPC health |
 | `smodels` | `sashi models` | List models |
 | `shistory` | `sashi history` | Query history |
+| `schangelog` | `sashi changelog` | Full CHANGELOG.md |
+| `swallog` | `sashi wallog [N]` | Modelfile git log + SQL WAL changelog |
 | `skanban` | `sashi kanban board` | Kanban board |
 | `sgmail` | `sashi gmail` | Email context |
+| `usb-scan` | `sashi usb scan` | List USB devices with vendor names |
+| `usb-watch` | `sashi usb watch` | Real-time USB plug/unplug events |
+| `wifi-init` | `sashi wifi init` | ADB WiFi: tcpip + auto IP detect |
+| `wifi-status` | `sashi wifi status` | List wireless ADB devices |
+
+### Filesystem (v3.2.2 — 30 aliases)
+
+#### Find & Filter
+
+| Alias | Expands to | Example |
+|-------|-----------|---------|
+| `ff` | `find . -type f -name` | `ff "*.log"` |
+| `ffd` | `find . -type d -name` | `ffd "build*"` |
+| `ffl` | `find . -type l` | list all symlinks |
+| `fmod` | `find . -type f -mmin` | `fmod -60` (last 60 min) |
+| `fsize` | `find . -type f -size` | `fsize +100M` |
+| `fnew` | `find . -type f -newer` | `fnew ref-file` |
+| `fdup` | md5sum dedup pipeline | find duplicate files |
+| `fempty` | `find . -type f -empty` | zero-byte files |
+| `fdangling` | find broken symlinks | dangling symlink scan |
+
+#### Disk Analysis
+
+| Alias | Expands to | Notes |
+|-------|-----------|-------|
+| `duh` | `du -sh * \| sort -rh` | current dir, size-sorted |
+| `dua` | `du -ah --max-depth=1 \| sort -rh` | all entries, depth 1 |
+| `dut` | `du -sh */` | dirs only, sorted |
+| `dfh` | `df -hT --exclude-type=tmpfs …` | real disks only |
+| `dfio` | `df -i` | inode usage |
+
+#### Directory Listing
+
+| Alias | Expands to | Notes |
+|-------|-----------|-------|
+| `lsl` | `ls -lahF --color` | full listing |
+| `lst` | `ls -lath --color` | sorted by time |
+| `lsz` | `ls -laSh --color` | sorted by size |
+| `lsd` | `ls -lah --group-directories-first` | dirs first |
+| `lsr` | `ls -lahR --color` | recursive |
+
+#### Archive
+
+| Alias | Usage | Notes |
+|-------|-------|-------|
+| `tarc` | `tarc out.tar.gz dir/` | create tar.gz |
+| `tarx` | `tarx file.tar.gz` | extract |
+| `tarxv` | `tarxv file.tar.gz` | extract verbose |
+| `tarl` | `tarl file.tar.gz` | list contents |
+| `tarbz` | `tarbz out.tar.bz2 dir/` | bzip2 |
+| `zipr` | `zipr out.zip dir/` | zip recursive |
+
+#### Copy / Move / Delete
+
+| Alias | Expands to | Notes |
+|-------|-----------|-------|
+| `cpv` | `rsync -ah --progress` | cp with progress bar |
+| `cpvr` | `rsync -ahr --progress --delete` | mirror dir |
+| `mvv` | `mv -v` | verbose move |
+| `rmv` | `rm -iv` | interactive + verbose |
+| `rmrf` | `rm -rf` | explicit destructive intent |
+
+#### Permissions & Ownership
+
+| Alias | Expands to | Notes |
+|-------|-----------|-------|
+| `chmodr` | `chmod -R` | recursive chmod |
+| `chownr` | `chown -R` | recursive chown |
+| `mkexec` | `chmod +x` | make executable |
+| `fixperms` | find -exec chmod 644/755 | fix file/dir perms |
+
+#### Symlinks
+
+| Alias | Expands to | Notes |
+|-------|-----------|-------|
+| `lnr` | `ln -sr` | relative symlink |
+| `lna` | `ln -sf` | absolute/force symlink |
+| `lslinks` | find -type l -exec ls | show all symlinks + targets |
+
+#### Checksum & Compare
+
+| Alias | Expands to | Notes |
+|-------|-----------|-------|
+| `fhash` | `sha256sum` | hash a file |
+| `fcheck` | `sha256sum -c` | verify checksum file |
+| `mdiff` | `diff -rq` | compare two directories |
+| `mdiffu` | `diff -ru` | unified diff of dirs |
+
+#### Watch & Monitor
+
+| Alias | Expands to | Notes |
+|-------|-----------|-------|
+| `fwatch` | `watch -n1 "ls -lah"` | watch dir every 1s |
+| `fwatchp` | `inotifywait -rm -e modify,create,delete,move` | inotify on path |
 
 ### Git
 

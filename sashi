@@ -11,7 +11,7 @@ source "$SCRIPT_DIR/lib/sh/banner.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/lib/sh/usb-monitor.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/lib/sh/wifi-debug.sh" 2>/dev/null || true
 
-VERSION="3.2.1"
+VERSION="3.2.2"
 DB_PATH="${SASHI_DB:-$SCRIPT_DIR/db/history.db}"
 MODEL="${LOCAL_MODEL:-llama3.2}"
 OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
