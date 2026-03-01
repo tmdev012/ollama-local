@@ -1,0 +1,31 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    paths: ['Dockerfile', 'docker-compose.yaml', 'docker-compose.yml']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Validate compose config
+        run: docker compose config -q

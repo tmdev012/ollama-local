@@ -1,0 +1,18 @@
+#!/bin/bash
+# ai-fast — Fast single-shot AI query (llama3.2 3B)
+# Archived 2026-02-08, restored 2026-03-01
+
+if [ -t 0 ]; then
+    if [ $# -eq 0 ]; then
+        echo "Usage: ai-fast [PROMPT]"
+        exit 1
+    fi
+    prompt="Give a concise answer: $*"
+else
+    prompt="Give a concise answer: $(cat -)"
+    if [ $# -gt 0 ]; then
+        prompt="$prompt $*"
+    fi
+fi
+
+ollama run llama3.2 "$prompt"
