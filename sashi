@@ -52,6 +52,7 @@ Commands:
   8b <prompt>       Query via sashi-llama-8b (8B model, better quality)
   kanban [board|state|backlog|open|wip|closed]  Kanban board
   write <file> <prompt>  Run llama, write output to file
+  wallog [N]             Modelfile git log ↔ SQL WAL changelog (default 10 entries)
   probe [sync|list|recommend|export|write|status]  gRPC probe commands
   grpc  [start|stop|status|restart]  Manage gRPC server daemons
   android-studio [project_path]  Sashi Android Studio — terminal IDE (Android/Kotlin/Flutter)

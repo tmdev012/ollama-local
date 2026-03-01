@@ -202,7 +202,7 @@ llmw_safe_write() {
     local outfile="$1"; shift
     local prompt="$*"
     local primary="${LLM_MODEL:-llama3.2}"
-    local fallback="sashi-llama-fast"
+    local fallback="fast-sashi"
 
     _lw_info "Safe write → $outfile (primary: $primary)"
     local output

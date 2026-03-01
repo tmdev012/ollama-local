@@ -3,7 +3,7 @@
 > Local-first AI assistant powered by Ollama/Llama. Privacy-first, no data leaves your machine. Runs on modest hardware (i7, 8GB RAM, no GPU). Optional cloud fallback via OpenRouter.
 
 [![GitHub](https://img.shields.io/badge/GitHub-tmdev012%2Follama--local-blue)](https://github.com/tmdev012/ollama-local)
-[![Version](https://img.shields.io/badge/version-3.2.2-green)]()
+[![Version](https://img.shields.io/badge/version-3.2.3-green)]()
 [![License](https://img.shields.io/badge/license-MIT-yellow)]()
 
 ---

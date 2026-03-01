@@ -3,6 +3,32 @@
 
 ---
 
+## v3.2.3 — 2026-03-01
+
+### Added
+- `lib/sh/file-ops.sh` — 516-line file operations library (24 functions across 9 op categories):
+  detect, read, write, append, rotate, parse (csv/json/jsonl/text), copy, move, delete, batch, check, recover, info, stream, split, join
+- `lib/sh/llm-write.sh` — 217-line LLM write library (7 modes):
+  `llmw_write` (atomic), `llmw_process` (read→llama→write), `llmw_append` (flock-safe), `llmw_batch` (glob), `llmw_write_fmt` (json/csv/md/sh validated), `llmw_pipe` (stdin), `llmw_safe_write` (fallback)
+- `sashi file <op>` — 17 subcommands: info, detect, check, read, write, append, parse, copy, move, delete, batch, recover, stream, split, join, rotate
+- `sashi write` — extended with 7 modes: --read, --append, --batch, --fmt (json/csv/md/sh), --safe, --pipe
+- 17 `sfile-*` aliases + 10 `swrite-*` aliases in `lib/sh/aliases.sh`
+- `training/sashi_v3.2.3_master.jsonl` — 232-dialog HuggingFace ChatML dataset
+- `training/README.md` — HuggingFace dataset card with YAML frontmatter
+
+### Fixed (GAP audit 2026-03-01)
+- `lib/sh/llm-write.sh:205` — fallback model `sashi-llama-fast` → `fast-sashi` (CRITICAL)
+- `sashi help` — added `wallog [N]` command entry (was missing)
+- `Modelfile.fast` — header "v4.0" + all "v3.2.1" refs → v3.2.3
+- `Modelfile.8b` — all "v3.2.1" refs (lines 3, 120, 137, 217) → v3.2.3
+- `README.md` — version badge v3.2.2 → v3.2.3
+
+### Changed
+- VERSION: 3.2.2 → 3.2.3
+- Both Modelfiles rebuilt: `fast-sashi:latest` + `sashi-llama-8b:latest`
+
+---
+
 ## v3.2.2 — 2026-03-01
 
 ### Added
