@@ -3,6 +3,25 @@
 
 ---
 
+## v3.2.1 — 2026-03-01
+
+### Added
+- `sashi usb [scan|watch|storage|details|tree|search|export]` — full USB device detection (sysfs + lsusb)
+- `sashi wifi [init|connect|scan|status|logcat|shell]` — ADB WiFi wireless debugging
+- `sashi hf <prompt>` — HuggingFace Inference API (free tier, fallback when no OpenRouter key)
+- `lib/sh/usb-monitor.sh` — vendor DB (Huawei/Samsung/Arduino/STM32/etc), sysfs scan, real-time watch
+- `lib/sh/wifi-debug.sh` — auto IP detect, nmap/arp LAN scan, tcpip init flow
+
+### Changed
+- `Modelfile.fast` v4.2 — USB/WiFi/HF docs added to system prompt, version bumped
+- `Modelfile.8b` — version bumped to 3.2.1, USB/WiFi/HF commands added
+- `online_query()` — falls back to HuggingFace Inference API when OpenRouter key absent
+- `lib/sh/banner.sh` — restored sashi_banner() (was 0 bytes)
+- `lib/sh/aliases.sh` — restored all aliases incl. usb-scan, wifi-*, s8b, sp
+- VERSION: 3.2.0 → 3.2.1
+
+---
+
 ## v3.2.0 — 2026-02-22
 
 ### Added
