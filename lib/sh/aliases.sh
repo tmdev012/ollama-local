@@ -160,6 +160,19 @@ alias fwatchp='inotifywait -rm -e modify,create,delete,move'  # inotify on path
 # ── Sashi WAL log ─────────────────────────────────────────────────────
 alias swallog='$_SASHI_DIR/sashi wallog'               # Modelfile ↔ SQL WAL changelog
 
+
+# ── Sashi LLM Write System (v3.2.3) ───────────────────────────────────
+alias swrite='$_SASHI_DIR/sashi write'                          # prompt → file
+alias swrite-read='$_SASHI_DIR/sashi write --read'              # file → llama → file
+alias swrite-append='$_SASHI_DIR/sashi write --append'          # append AI output
+alias swrite-batch='$_SASHI_DIR/sashi write --batch'            # batch process files
+alias swrite-json='$_SASHI_DIR/sashi write --fmt json'          # validated JSON output
+alias swrite-csv='$_SASHI_DIR/sashi write --fmt csv'            # validated CSV output
+alias swrite-md='$_SASHI_DIR/sashi write --fmt md'              # markdown output
+alias swrite-sh='$_SASHI_DIR/sashi write --fmt sh'              # bash script output
+alias swrite-safe='$_SASHI_DIR/sashi write --safe'              # retry with fallback
+alias swrite-pipe='$_SASHI_DIR/sashi write --pipe'              # cat file | swrite-pipe
+
 # ── Sashi File Operations (v3.2.3) ────────────────────────────────────
 alias sfile='$_SASHI_DIR/sashi file'                   # file ops root
 alias sfile-info='$_SASHI_DIR/sashi file info'         # full info card

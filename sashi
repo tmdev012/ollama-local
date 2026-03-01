@@ -10,8 +10,10 @@ source "$SCRIPT_DIR/.env" 2>/dev/null || true
 source "$SCRIPT_DIR/lib/sh/banner.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/lib/sh/usb-monitor.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/lib/sh/wifi-debug.sh" 2>/dev/null || true
+source "$SCRIPT_DIR/lib/sh/file-ops.sh" 2>/dev/null || true
+source "$SCRIPT_DIR/lib/sh/llm-write.sh" 2>/dev/null || true
 
-VERSION="3.2.2"
+VERSION="3.2.3"
 DB_PATH="${SASHI_DB:-$SCRIPT_DIR/db/history.db}"
 MODEL="${LOCAL_MODEL:-llama3.2}"
 OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
@@ -362,6 +364,81 @@ case "${1:-help}" in
             echo "No CHANGELOG.md found at $CHANGELOG"
         fi
         ;;
+    file)
+        shift
+        if ! type fops_info &>/dev/null; then
+            source "$SCRIPT_DIR/lib/sh/file-ops.sh" || { echo "file-ops.sh not found"; exit 1; }
+        fi
+        subcmd="${1:-help}"; shift 2>/dev/null || true
+        case "$subcmd" in
+            read)    fops_read "$@" ;;
+            write)   fops_write "$@" ;;
+            append)  fops_append "$@" ;;
+            parse)
+                fmt="${1:-auto}"; shift 2>/dev/null || true
+                path="${1:-}";    shift 2>/dev/null || true
+                case "$fmt" in
+                    csv)   fops_parse_csv  "$path" "$@" ;;
+                    json)  fops_parse_json "$path" "$@" ;;
+                    jsonl) fops_parse_jsonl "$path" "$@" ;;
+                    text)  fops_parse_text  "$path" "$@" ;;
+                    auto)  fops_detect_op "$path" && fops_info "$path" ;;
+                    *)     fops_parse_text "$fmt" "$@" ;;
+                esac ;;
+            copy)    fops_copy   "$@" ;;
+            move)    fops_move   "$@" ;;
+            delete)  fops_delete "$@" ;;
+            batch)   fops_batch  "$@" ;;
+            check)   fops_check_corrupt "$@" ;;
+            recover) fops_recover "$@" ;;
+            info)    fops_info   "$@" ;;
+            stream)  fops_stream "$@" ;;
+            split)   fops_split  "$@" ;;
+            join)    fops_join   "$@" ;;
+            rotate)  fops_rotate "$@" ;;
+            detect)  fops_detect_op "$@" ;;
+            help|--help|-h|*)
+                echo ""
+                echo "  sashi file — File Operations (v3.2.2)"
+                echo ""
+                echo "  READING"
+                echo "    sashi file read   <path> [enc] [head_n]    size-aware, encoding-safe"
+                echo "    sashi file stream <path> [filter]          real-time tail -f"
+                echo ""
+                echo "  WRITING"
+                echo "    sashi file write  <path> <content> [--backup]  atomic (tmp→mv)"
+                echo "    sashi file append <path> <content> [max_mb]    flock concurrent-safe"
+                echo "    sashi file rotate <path> [keep_n]              log rotation"
+                echo ""
+                echo "  PARSING"
+                echo "    sashi file parse csv   <path> [col] [delim]"
+                echo "    sashi file parse json  <path> [jq-query]"
+                echo "    sashi file parse jsonl <path> [head_n]"
+                echo "    sashi file parse text  <path> [stats|head|tail|grep]"
+                echo "    sashi file parse auto  <path>               detect + info"
+                echo ""
+                echo "  FILE SYSTEM OPS"
+                echo "    sashi file copy   <src> <dst> [verify=1]   rsync + sha256 verify"
+                echo "    sashi file move   <src> <dst>              cross-device safe"
+                echo "    sashi file delete <path> [trash|shred|force|dry]"
+                echo ""
+                echo "  BATCH"
+                echo "    sashi file batch <op> <find-pattern> [parallel] [args]"
+                echo "    ops: parse|hash|stat|chmod|chown|gzip|copy|delete"
+                echo ""
+                echo "  ERROR HANDLING"
+                echo "    sashi file check   <path>                  corrupt/integrity check"
+                echo "    sashi file recover <path> [backup|git|truncate]"
+                echo "    sashi file detect  <path>                  op-type + size class"
+                echo ""
+                echo "  PERFORMANCE"
+                echo "    sashi file split <path> [lines|size] [val] split large files"
+                echo "    sashi file join  <pattern> <out>           join split parts"
+                echo "    sashi file info  <path>                    full info card"
+                echo ""
+                ;;
+        esac
+        ;;
     wallog)
         shift
         LIMIT="${1:-10}"
@@ -489,12 +566,56 @@ case "${1:-help}" in
             ;;
         write)
             shift
-            outfile="$1"; shift
-            prompt="$*"
-            [[ -z "$outfile" || -z "$prompt" ]] && { echo "Usage: sashi write <file> <prompt>"; exit 1; }
-            echo "Writing to $outfile..."
-            ollama run "$MODEL" "$prompt" > "$outfile"
-            echo "Done: $outfile ($(wc -l < "$outfile") lines)"
+            subcmd="${1:-help}"
+            # detect if first arg is a flag or subcommand
+            case "$subcmd" in
+                --read|-r)
+                    shift
+                    infile="$1"; outfile="$2"; shift 2
+                    llmw_process "$infile" "$outfile" "$@"
+                    ;;
+                --append|-a)
+                    shift
+                    llmw_append "$@"
+                    ;;
+                --batch|-b)
+                    shift
+                    llmw_batch "$@"
+                    ;;
+                --fmt|-f)
+                    shift
+                    llmw_write_fmt "$@"
+                    ;;
+                --pipe|-p)
+                    shift
+                    llmw_pipe "$@"
+                    ;;
+                --safe|-s)
+                    shift
+                    llmw_safe_write "$@"
+                    ;;
+                help|--help|-h)
+                    echo ""
+                    echo "  sashi write — LLM File Write System (v3.2.2)"
+                    echo ""
+                    echo "  sashi write <file> <prompt>              prompt → file (atomic)"
+                    echo "  sashi write --read <in> <out> <prompt>   read file → llama → write"
+                    echo "  sashi write --append <file> <prompt>     append AI output to file"
+                    echo "  sashi write --batch <glob> <dir> <prompt> process multiple files"
+                    echo "  sashi write --fmt <json|csv|md|sh> <out> <prompt>  format-validated"
+                    echo "  sashi write --pipe <out> <prompt>        cat file | sashi write --pipe"
+                    echo "  sashi write --safe <file> <prompt>       retry with fallback model"
+                    echo ""
+                    ;;
+                *)
+                    # default: original behaviour — sashi write <file> <prompt>
+                    outfile="$subcmd"; shift
+                    prompt="$*"
+                    [[ -z "$outfile" || -z "$prompt" ]] && {
+                        bash "$0" write help; exit 1; }
+                    llmw_write "$outfile" "$prompt"
+                    ;;
+            esac
             ;;
         probe)
             shift
