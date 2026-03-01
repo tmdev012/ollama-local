@@ -1,7 +1,7 @@
 #!/bin/bash
 # aliases.sh — Single source of all sashi shell aliases
 # Source from .bashrc / .zshrc:  source ~/ollama-local/lib/sh/aliases.sh
-# sashi v3.2.2
+# sashi v3.2.3
 
 _SASHI_DIR="${_SASHI_DIR:-$HOME/ollama-local}"
 
@@ -27,6 +27,12 @@ alias shf='$_SASHI_DIR/sashi hf'
 alias s8b='$_SASHI_DIR/sashi 8b'
 
 # ── USB / WiFi debugging ──────────────────────────────────────────────
+# bare commands (what the user types directly)
+alias usb='$_SASHI_DIR/sashi usb'
+alias wifi='$_SASHI_DIR/sashi wifi'
+alias hf='$_SASHI_DIR/sashi hf'
+alias android-studio='$_SASHI_DIR/sashi android-studio'
+# subcommand shortcuts
 alias usb-scan='$_SASHI_DIR/sashi usb scan'
 alias usb-watch='$_SASHI_DIR/sashi usb watch'
 alias usb-storage='$_SASHI_DIR/sashi usb storage'
@@ -153,5 +159,24 @@ alias fwatchp='inotifywait -rm -e modify,create,delete,move'  # inotify on path
 
 # ── Sashi WAL log ─────────────────────────────────────────────────────
 alias swallog='$_SASHI_DIR/sashi wallog'               # Modelfile ↔ SQL WAL changelog
+
+# ── Sashi File Operations (v3.2.3) ────────────────────────────────────
+alias sfile='$_SASHI_DIR/sashi file'                   # file ops root
+alias sfile-info='$_SASHI_DIR/sashi file info'         # full info card
+alias sfile-detect='$_SASHI_DIR/sashi file detect'     # detect op-type + size class
+alias sfile-check='$_SASHI_DIR/sashi file check'       # integrity/corrupt check
+alias sfile-read='$_SASHI_DIR/sashi file read'         # size-aware read
+alias sfile-write='$_SASHI_DIR/sashi file write'       # atomic write
+alias sfile-append='$_SASHI_DIR/sashi file append'     # flock-safe append
+alias sfile-parse='$_SASHI_DIR/sashi file parse'       # csv/json/jsonl/text
+alias sfile-copy='$_SASHI_DIR/sashi file copy'         # rsync + sha256 verify
+alias sfile-move='$_SASHI_DIR/sashi file move'         # cross-device safe move
+alias sfile-delete='$_SASHI_DIR/sashi file delete'     # trash-first delete
+alias sfile-batch='$_SASHI_DIR/sashi file batch'       # parallel batch ops
+alias sfile-recover='$_SASHI_DIR/sashi file recover'   # backup|git|truncate recovery
+alias sfile-stream='$_SASHI_DIR/sashi file stream'     # real-time tail -f
+alias sfile-split='$_SASHI_DIR/sashi file split'       # split large files
+alias sfile-join='$_SASHI_DIR/sashi file join'         # join split parts
+alias sfile-rotate='$_SASHI_DIR/sashi file rotate'     # log rotation
 
 export _SASHI_DIR

@@ -1,9 +1,9 @@
 #!/bin/bash
-# banner.sh — Shared ASCII art banner for sashi v3.2.1
+# banner.sh — Shared ASCII art banner for sashi v3.2.2
 # Usage: source lib/sh/banner.sh && sashi_banner
 
 sashi_banner() {
-    local ver="${1:-3.2.1}"
+    local ver="${1:-${VERSION:-3.2.2}}"
     echo -e "\033[34m"
     cat << 'BANNER'
  ███████╗ █████╗ ███████╗██╗  ██╗██╗
@@ -19,6 +19,6 @@ BANNER
 
 # Compact one-liner for tight contexts
 sashi_banner_short() {
-    local ver="${1:-3.2.1}"
+    local ver="${1:-${VERSION:-3.2.2}}"
     echo -e "\033[34m[SASHI v${ver}]\033[0m \033[90mlocal-first AI · llama3.2 · zero cloud costs\033[0m"
 }
