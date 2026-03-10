@@ -186,7 +186,117 @@ def do_diff(root: Path, open_file: Path = None):
     syn = Syntax(diff, "diff", theme="monokai", line_numbers=True)
     console.print(Panel(syn, title=f"[bold]DIFF — {fname}[/bold]", border_style="magenta"))
 
-# ── Scaffold ──────────────────────────────────────────────────────────────────
+# ── Project scaffold — Hello World ────────────────────────────────────────────
+def scaffold_hello_world(root: Path):
+    pkg = "com.tmdev012.helloandroid"
+    pkg_path = pkg.replace(".", "/")
+    console.print(f"[yellow]▶ Scaffolding Hello World project at {root}[/yellow]")
+    root.mkdir(parents=True, exist_ok=True)
+
+    (root / "settings.gradle").write_text('rootProject.name = "hello-android"\ninclude ":app"\n')
+    (root / "build.gradle").write_text(
+        "plugins {\n"
+        "    id 'com.android.application' version '8.1.0' apply false\n"
+        "    id 'org.jetbrains.kotlin.android' version '1.9.0' apply false\n"
+        "}\n"
+    )
+    app_dir = root / "app"
+    app_dir.mkdir(exist_ok=True)
+    (app_dir / "build.gradle").write_text(f"""\
+plugins {{
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}}
+android {{
+    namespace '{pkg}'
+    compileSdk 34
+    defaultConfig {{
+        applicationId '{pkg}'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }}
+    compileOptions {{
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }}
+    kotlinOptions {{ jvmTarget = '1.8' }}
+}}
+dependencies {{
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}}
+""")
+    main_dir = root / "app/src/main"
+    main_dir.mkdir(parents=True, exist_ok=True)
+    (main_dir / "AndroidManifest.xml").write_text(f"""\
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="Hello Android"
+        android:theme="@style/Theme.AppCompat.Light">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+""")
+    kt_dir = root / f"app/src/main/kotlin/{pkg_path}"
+    kt_dir.mkdir(parents=True, exist_ok=True)
+    (kt_dir / "MainActivity.kt").write_text(f"""\
+package {pkg}
+
+import android.os.Bundle
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+
+class MainActivity : AppCompatActivity() {{
+    override fun onCreate(savedInstanceState: Bundle?) {{
+        super.onCreate(savedInstanceState)
+        val tv = TextView(this).apply {{
+            text = "Hello World\\n\\nBuilt with Sashi Android Studio v3.2.3"
+            textSize = 24f
+            setPadding(64, 200, 64, 0)
+        }}
+        setContentView(tv)
+    }}
+}}
+""")
+    res_dir = root / "app/src/main/res/values"
+    res_dir.mkdir(parents=True, exist_ok=True)
+    (res_dir / "strings.xml").write_text(
+        '<resources><string name="app_name">Hello Android</string></resources>\n'
+    )
+    wrapper_dir = root / "gradle/wrapper"
+    wrapper_dir.mkdir(parents=True, exist_ok=True)
+    (wrapper_dir / "gradle-wrapper.properties").write_text(
+        "distributionBase=GRADLE_USER_HOME\n"
+        "distributionPath=wrapper/dists\n"
+        "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.4-bin.zip\n"
+        "zipStoreBase=GRADLE_USER_HOME\n"
+        "zipStorePath=wrapper/dists\n"
+    )
+    gradlew = root / "gradlew"
+    gradlew.write_text("""\
+#!/bin/sh
+VER=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed 's/.*gradle-\\(.*\\)-bin.*/\\1/')
+GBIN=$(find "$HOME/.gradle/wrapper/dists" -name "gradle" -path "*${VER}*" -type f 2>/dev/null | head -1)
+if [ -z "$GBIN" ]; then
+    echo "Downloading Gradle $VER..."
+    mkdir -p "$HOME/.gradle/wrapper/dists"
+    curl -Lo /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-${VER}-bin.zip"
+    unzip -q /tmp/gradle.zip -d "$HOME/.gradle/wrapper/dists/"
+    GBIN=$(find "$HOME/.gradle/wrapper/dists" -name "gradle" -path "*${VER}*" -type f | head -1)
+fi
+exec "$GBIN" "$@"
+""")
+    gradlew.chmod(0o755)
+    console.print("[green]✓ Hello World scaffolded — press 'b' to build, 'd' to deploy via USB[/green]")
+
+# ── New Kotlin file ────────────────────────────────────────────────────────────
 def do_new_file(root: Path):
     name = input("New Kotlin class name: ").strip()
     if not name: return
@@ -226,7 +336,7 @@ def main():
 
     root = Path(args.project).expanduser().resolve()
     if not root.exists():
-        console.print(f"[red]Project not found: {root}[/red]"); sys.exit(1)
+        scaffold_hello_world(root)
 
     files      = scan_files(root)
     open_file  = files[0] if files else None
