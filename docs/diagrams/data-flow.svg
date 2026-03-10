@@ -45,7 +45,7 @@
   <!-- Step 3: Router self (select backend) -->
   <path d="M 400 200 C 450 200 450 220 400 220" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
   <rect x="410" y="195" width="110" height="20" rx="3" fill="#fff" stroke="#ddd"/>
-  <text x="465" y="208" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#333">Select: DeepSeek</text>
+  <text x="465" y="208" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#333">Select: HuggingFace</text>
 
   <!-- Step 4: Router to MCP -->
   <line x1="390" y1="250" x2="530" y2="250" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>

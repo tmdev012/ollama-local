@@ -90,7 +90,7 @@
   <g class="line3">
     <path d="M 400 200 C 450 200 450 220 400 220" stroke="#c2185b" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
     <rect x="410" y="195" width="110" height="20" rx="3" fill="#fff" stroke="#c2185b"/>
-    <text x="465" y="208" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#333">Select: DeepSeek</text>
+    <text x="465" y="208" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#333">Select: HuggingFace</text>
   </g>
 
   <!-- Step 4 -->

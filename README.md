@@ -1,6 +1,8 @@
-# SASHI - Smart AI Shell Interface
+# SASHI v3.2.3 — Local-first AI Orchestration Layer
 
-> Local-first AI assistant powered by Ollama/Llama. Privacy-first, no data leaves your machine. Runs on modest hardware (i7, 8GB RAM, no GPU). Optional cloud fallback via OpenRouter.
+> **Sashi** is an AI-native CLI providing local LLM inference, MCP-compatible tool dispatch,
+> gRPC-backed project intelligence, and a structured agentic write pipeline.
+> Designed to run fully offline on constrained hardware. No GPU required.
 
 [![GitHub](https://img.shields.io/badge/GitHub-tmdev012%2Follama--local-blue)](https://github.com/tmdev012/ollama-local)
 [![Version](https://img.shields.io/badge/version-3.2.3-green)]()
@@ -10,750 +12,733 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Performance Tuning](#performance-tuning)
+- [Three-Repo Stack](#three-repo-stack)
+- [Incident Report: Unbound Variable (2026-03-11)](#incident-report-unbound-variable-2026-03-11)
+- [What v3.2.3 Is](#what-v323-is)
 - [Architecture](#architecture)
 - [Models](#models)
-- [MCP Structure](#mcp-structure)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Termux (Mobile)](#termux-mobile)
-- [SQLite Schema](#sqlite-schema)
+- [Variables Reference](#variables-reference)
+- [Commands](#commands)
 - [Aliases Reference](#aliases-reference)
-- [Smart Push](#smart-push)
-- [Session Timeline](#session-timeline)
+- [Android / USB Hello World](#android--usb-hello-world)
+- [Performance Tuning](#performance-tuning)
+- [SQLite Schema](#sqlite-schema)
+- [JSONL Training Schema](#jsonl-training-schema)
+- [Version History](#version-history)
+- [Installation](#installation)
 
 ---
 
-## Overview
+## Three-Repo Stack
 
-SASHI routes all queries through `ollama run` (native CLI, streaming, model stays hot). No cloud dependency. No API keys required for local use.
+The system is three interdependent repositories sharing a single SQLite WAL database.
+**No repo is standalone.** Changes to one affect the others. Any update requires a
+multi-tenant review: version strings, gRPC proto compatibility, and training data must
+stay in sync across all three before a push is authoritative.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      USER INPUT                              │
-│            text / voice / pipe / interactive                 │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     SASHI v3.2.2                             │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
-│  │ Router  │→ │ Logger  │→ │ History │→ │ Output  │        │
-│  └─────────┘  └─────────┘  └─────────┘  └─────────┘        │
-└─────────────────────────────────────────────────────────────┘
-        │              │              │              │
-        ▼              ▼              ▼              ▼
-┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐
-│  Llama    │  │OpenRouter │  │   Gmail   │  │   Voice   │
-│  Ollama   │  │  (Cloud)  │  │    API    │  │  Google   │
-│  (Local)  │  │ (Fallback)│  │  (OAuth)  │  │   STT     │
-└───────────┘  └───────────┘  └───────────┘  └───────────┘
-   Primary       Optional        Context        Input
+┌─────────────────────────────────────────────────────────────────────┐
+│                     STACK OVERVIEW v3.2.3                           │
+│                                                                     │
+│  ollama-local/           kanban-pmo/          persist-memory-probe/ │
+│  ┌─────────────┐        ┌─────────────┐       ┌──────────────────┐  │
+│  │  sashi CLI  │◄──────►│  Governor   │◄─────►│ Credential Layer │  │
+│  │  Inference  │  gRPC  │  :50051     │  gRPC │  :50052          │  │
+│  │  File I/O   │        │  Kanban     │       │  probe.db        │  │
+│  │  Training   │        │  Repo Auth  │       │  Gatekeeper      │  │
+│  └──────┬──────┘        └──────┬──────┘       └────────┬─────────┘  │
+│         │                     │                        │            │
+│         └─────────────────────┴────────────────────────┘            │
+│                               │                                     │
+│                    ~/ollama-local/db/history.db                     │
+│                    (SQLite WAL — shared via symlinks)               │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Process Map
+### Repo Roles
 
-![Process Map](docs/diagrams/process-map-animated.svg)
+| Repo | Role | Key Files | gRPC Port |
+|------|------|-----------|-----------|
+| `ollama-local` | CLI + Inference + File I/O | `sashi`, `lib/sh/`, `Modelfile.*` | client |
+| `kanban-pmo` | Governor / CFO — sprint & repo authority | `grpc_server.py`, `config/repos.yml` | :50051 |
+| `persist-memory-probe` | Credential layer + repo scanner | `gatekeeper_3_1_0.sh`, `probe_server.py` | :50052 |
 
-### Data Flow
+### Shared State
 
-![Data Flow](docs/diagrams/data-flow-animated.svg)
+- `~/ollama-local/db/history.db` — primary SQLite WAL
+- `~/persist-memory-probe/db/sashi_history.db` → symlink to above
+- `kanban-pmo/config/repos.yml` — 11 repos registered; governs push authority
+- `CHANGELOG.md` — injected into both Modelfile system prompts at build time
 
-### Smart Push Flow
+### Multi-Tenant Update Rule
 
-![Smart Push Flow](docs/diagrams/smart-push-animated.svg)
+Any version bump must touch all three repos in one session:
+1. Bump version strings in `sashi`, `Modelfile.fast`, `Modelfile.8b`, SVGs
+2. Update `CHANGELOG.md` (feeds model training)
+3. Rebuild models: `ollama create fast-sashi -f Modelfile.fast && ollama create sashi-llama-8b -f Modelfile.8b`
+4. Push `ollama-local` → then `kanban-pmo` → then `persist-memory-probe`
 
 ---
 
-## Performance Tuning
+## Incident Report: Unbound Variable (2026-03-11)
 
-Benchmarked and optimized for CPU-only hardware (no GPU). These settings were proven across 3 rounds of benchmarking on an i7-6500U (2 cores, 4 threads, 7.6GB RAM, 8GB swap).
+**Duration:** ~1 hour downtime on `sashi` startup
+**Root cause:** `set -uo pipefail` (line 4) + bare `$TERMUX_VERSION` reference (line 9)
+**Symptom:** Every invocation of `sashi` failed immediately:
 
-### Why These Settings Matter
+```
+/home/tmdev012/ollama-local/sashi: line 9: TERMUX_VERSION: unbound variable
+```
 
-| Setting | Wrong Value | Right Value | What Happens |
-|---------|-------------|-------------|-------------|
-| `num_thread` | 4 (all threads) | **2** (physical cores) | HT contention = **30% slower** with 4 threads |
-| CPU governor | `powersave` | **`performance`** | Prevents CPU throttling mid-inference |
-| `OLLAMA_MAX_LOADED_MODELS` | default | **1** | Prevents 2 models fighting for RAM |
-| `OLLAMA_KEEP_ALIVE` | 5m | **30m** | Model stays hot between queries |
-| `OLLAMA_NUM_PARALLEL` | default | **1** | Single user = no parallel overhead |
+### Why It Happened
 
-### Apply Optimizations (one time)
+The script had `set -u` enabled, which treats any reference to an unset variable as a
+fatal error. `TERMUX_VERSION` is an environment variable set automatically by the
+[Termux Android app](https://termux.dev) — it is **never present** on a Linux desktop.
+
+The original code:
+```bash
+# BROKEN — crashes under set -u on any non-Android machine
+[[ -n "$TERMUX_VERSION" || -d "/data/data/com.termux" ]] && source .env.termux
+```
+
+Two additional bare references survived in `show_status()` and `detect_environment()`,
+meaning `sashi status` would also crash even after the first fix.
+
+### Why It Went Undetected
+
+The variable group (`TERMUX_VERSION`, `.env.termux`, `SASHI_ENV`, `SASHI_ROUTE`) was
+introduced as a platform-detection block but was never treated as a group when `set -u`
+was added. There was no contract tracking which variables needed `:-` guards. Individual
+file edits across sessions caused the guard to be added to the startup block but missed
+in the two downstream functions.
+
+### Fix Applied
 
 ```bash
-# 1. CPU governor (needs sudo)
-echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-
-# 2. Ollama service tuning (needs sudo)
-sudo mkdir -p /etc/systemd/system/ollama.service.d
-cat << 'OVR' | sudo tee /etc/systemd/system/ollama.service.d/override.conf
-[Service]
-Environment="OLLAMA_NUM_PARALLEL=1"
-Environment="OLLAMA_MAX_LOADED_MODELS=1"
-Environment="OLLAMA_KEEP_ALIVE=30m"
-OVR
-sudo systemctl daemon-reload && sudo systemctl restart ollama
-
-# 3. Build optimized models (no sudo)
-ollama create fast-sashi -f ~/ollama-local/Modelfile.fast
-ollama create sashi-llama -f ~/ollama-local/Modelfile.system
+# CORRECT — uname -o provides ground truth before any variable reference
+_OS_TYPE="$(uname -o 2>/dev/null || echo unknown)"
+[[ "$_OS_TYPE" == "Android" ]] && source "$SCRIPT_DIR/.env.termux" 2>/dev/null || true
 ```
 
-### Benchmark Proof
+All three `TERMUX_VERSION` references replaced with `$_OS_TYPE` comparisons.
+`show_status()` now prints `uname -a` output for full environment context.
+Commit: `c5af357`
 
-Tested with identical prompts (coding, reasoning, knowledge). Eval rate = tokens/second during generation.
+### Lesson
 
-**Why `num_thread 2` beats `num_thread 4`:**
+When introducing a platform-specific variable group, guard **every** reference at the
+point of introduction. `set -u` is correct and should stay — it caught a real bug.
+The fix is at the variable reference, not by removing `set -u`.
 
-| num_thread | 3B tok/s | 8B tok/s | Notes |
-|------------|----------|----------|-------|
-| 4 (all threads) | 2.8 | 3.0 | HT contention kills throughput |
-| **2 (physical cores)** | **4.0** | **3.7** | **+43% on 3B, +23% on 8B** |
+---
 
-On a 2-core/4-thread CPU, hyperthreading competes for the same execution units. LLM inference is pure compute — it needs real cores, not virtual ones.
+## What v3.2.3 Is
 
-### Hardware Speed Ceiling
+v3.2.3 introduced a two-layer file I/O architecture and finalized the HuggingFace
+training corpus. It is the first version where `sashi write` routes through the local
+model before committing output to disk.
 
-| Model | Eval Rate | Cold Start | Hot Query Time |
-|-------|-----------|------------|----------------|
-| sashi-llama (3B) | ~4.0 tok/s | 5s | ~35s |
-| sashi-llama-8b (8B) | ~3.7 tok/s | 60s (swap) | ~40s |
+### New in v3.2.3
 
-The bottleneck is memory bandwidth, not CPU clock. This is the ceiling for this hardware.
+#### `sashi file` — 17 Structured File Operations
+
+```bash
+sashi file read   <path> [enc] [head_n]       # size-aware, encoding-safe
+sashi file write  <path> <content> [--backup] # atomic (tmp → mv)
+sashi file append <path> <content> [max_mb]   # flock concurrent-safe
+sashi file rotate <path> [keep_n]             # log rotation
+sashi file parse  csv|json|jsonl|text <path>  # format-aware parsing
+sashi file copy   <src> <dst> [verify=1]      # rsync + sha256 verify
+sashi file move   <src> <dst>                 # cross-device safe
+sashi file delete <path> [trash|shred|force]  # trash-first policy
+sashi file batch  <op> <pattern> [parallel]   # glob-targeted batch
+sashi file check  <path>                      # corrupt/integrity check
+sashi file recover <path> [backup|git|truncate]
+sashi file info   <path>                      # full info card
+sashi file stream <path> [filter]             # real-time tail -f
+sashi file split  <path> [lines|size] [val]   # split large files
+sashi file join   <pattern> <out>             # join split parts
+sashi file detect <path>                      # op-type + size class
+```
+
+Backed by `lib/sh/file-ops.sh` (516 lines) — POSIX-safe atomic write, rotate, parse,
+stream, split, and join primitives.
+
+#### `sashi write` — 7 LLM-Mediated Write Modes
+
+```bash
+sashi write <file> <prompt>              # prompt → file (atomic)
+sashi write --read <in> <out> <prompt>   # read file → llama → write
+sashi write --append <file> <prompt>     # append AI output to file
+sashi write --batch <glob> <dir> <prompt># process multiple files
+sashi write --fmt json|csv|md|sh <out> <prompt>  # format-validated
+sashi write --pipe <out> <prompt>        # cat file | sashi write --pipe
+sashi write --safe <file> <prompt>       # retry with fast-sashi fallback
+```
+
+Backed by `lib/sh/llm-write.sh` (227 lines). All writes are atomic. Fallback model
+is `fast-sashi` (canonical 3B). Input truncated to 6000 chars to stay within context.
+
+#### Training Corpus
+
+- `training/sashi_v3.2.3_master.jsonl` — 232 ChatML dialogs covering file-ops,
+  LLM write modes, and tool-dispatch patterns. Formatted for HuggingFace `datasets`.
+- `training/README.md` — dataset card with YAML frontmatter and schema documentation.
+- Both Modelfiles rebuilt: `fast-sashi:latest` (2.0GB) + `sashi-llama-8b:latest` (4.9GB)
+
+#### Bug Fixes in v3.2.3
+
+- **[CRITICAL]** `lib/sh/llm-write.sh` fallback model `sashi-llama-fast` corrected
+  to canonical `fast-sashi` — silent failures on degraded-path writes eliminated.
+- Version references synchronized across `Modelfile.fast` and `Modelfile.8b`.
+- Missing `wallog` entry added to `sashi help`.
 
 ---
 
 ## Architecture
 
-### BDPM Governance Layer (v3.2.2)
-
-The 4-layer BDPM governance model spans both repos. See the full swimlane diagram in [`kanban-pmo/docs/diagrams/bdpm-swimlanes.svg`](../kanban-pmo/docs/diagrams/bdpm-swimlanes.svg):
-
-- **Business** — kanban-pmo intake, sprint planning, milestone gates
-- **Development** — git push, model build, test verify, smart-push (this repo)
-- **Production** — gRPC pipeline dispatch, ollama inference, file write, DB log (this repo)
-- **Monitoring** — cred audit, health check, doc sync, CMMI compliance
-
-### Credential Layer
-
-`persist-memory-probe/lib/sh/gatekeeper_3_1_0.sh` is the credential gateway. It delegates inference to ollama-local while owning github/sign/remote routes. All `sashi` sub-commands (kanban, probe, write) pass through the gatekeeper before hitting the gRPC layer.
-
 ### Directory Structure
 
 ```
 ollama-local/
-├── sashi                    # Main CLI (v3.2.2)
-├── .env                     # Config (LOCAL_MODEL, OLLAMA_HOST)
-├── .env.termux              # Termux override (llama3.2:1b)
-├── Modelfile.fast            # 3B fast model (concise system prompt, default)
-├── Modelfile.system         # 3B full model config (comprehensive system prompt)
-├── Modelfile.8b             # 8B model config (num_thread 2, system prompt) [archived]
-├── install.sh               # One-command installer
-├── docker-compose.yml       # Container orchestration
+├── sashi                       # Main CLI v3.2.3 (bash, set -uo pipefail)
+├── .env                        # Config: LOCAL_MODEL, OLLAMA_HOST, gRPC ports
+├── .env.termux                 # Android override: LOCAL_MODEL=llama3.2:1b
+├── Modelfile.fast              # fast-sashi 3B (default, concise system prompt)
+├── Modelfile.8b                # sashi-llama-8b 8B (num_thread 2)
+├── CHANGELOG.md                # Canonical release record — injected into Modelfiles
 │
 ├── db/
-│   └── history.db           # SQLite WAL (10 tables, 27 indexes)
+│   └── history.db              # SQLite WAL (shared across all 3 repos)
 │
 ├── docs/
-│   ├── termux-ollama-plan.md  # Model sizing, swap analysis
-│   ├── termux-setup.md        # Phone install guide
-│   └── monetization.md        # Revenue playbook
+│   ├── diagrams/               # SVGs: process-map, data-flow, smart-push (v3.2.3)
+│   └── sashi-v3.2.3-spec.md   # Architecture spec
 │
-├── mcp/                     # Model Context Protocol
-│   ├── claude/              # Claude Code integration
-│   ├── llama/               # Local llama tools, ai-orchestrator
-│   ├── gmail/               # Gmail CLI (search, recent, export)
-│   └── voice/               # Voice input (CLI + GUI)
+├── lib/sh/
+│   ├── aliases.sh              # Single source for all shell aliases (sourced by .bashrc/.zshrc)
+│   ├── banner.sh               # sashi_banner() ASCII art
+│   ├── file-ops.sh             # File operations library (516 lines, 17 ops)
+│   ├── llm-write.sh            # LLM write pipeline (227 lines, 7 modes)
+│   ├── usb-monitor.sh          # USB vendor DB + sysfs scanner
+│   └── wifi-debug.sh           # ADB WiFi library
 │
-├── lib/
-│   └── sh/
-│       ├── banner.sh        # sashi_banner() ASCII art — sourced by all tools
-│       ├── aliases.sh       # Shell aliases — 80+ total incl. 30 filesystem (v3.2.2)
-│       ├── usb-monitor.sh   # USB vendor DB + sysfs scanner
-│       └── wifi-debug.sh    # ADB WiFi library
+├── mcp/
+│   ├── claude/                 # Claude Code integration
+│   ├── llama/tools/
+│   │   └── ai-orchestrator     # v3.1.0, sources banner.sh
+│   ├── gmail/tools/gmail-cli   # Gmail search/recent/export
+│   ├── voice/tools/            # voice-input, voice-gui, install-voice
+│   └── ide/sashi-ide           # Terminal Android/Kotlin IDE (Rich TUI, Python)
 │
 ├── scripts/
-│   ├── smart-push.sh        # 424-line git automation
-│   ├── rebuild-models.sh    # Rebuild fast-sashi + sashi-llama-8b from Modelfiles
-│   ├── android-setup.sh     # Downloads + installs Android SDK, platform-tools, adb
-│   ├── termux-sync.sh       # Desktop ↔ phone sync
-│   ├── git-setup.sh         # SSH/GitHub setup
-│   └── git-aliases.sh       # Git alias installer
+│   ├── smart-push.sh           # Git automation (424 lines)
+│   ├── android-setup.sh        # Android SDK + platform-tools installer
+│   ├── rebuild-models.sh       # Rebuild fast-sashi + sashi-llama-8b
+│   └── ollama-boost.sh         # CPU governor + performance tuning
 │
-└── old-archive/             # Archived sessions (never deleted)
+├── training/
+│   ├── sashi_v3.2.3_master.jsonl  # 232 ChatML training dialogs
+│   └── README.md               # HuggingFace dataset card
+│
+└── old-archive/                # Archived sessions (never deleted)
 ```
+
+### Data Flow
+
+```
+User input (text / pipe / interactive)
+          │
+          ▼
+    sashi (bash, set -uo pipefail)
+          │  sources .env, lib/sh/*.sh at startup
+          │  _OS_TYPE=$(uname -o) — platform detection
+          │
+    ┌─────┴──────────────────────────────────┐
+    │           Command Router               │
+    │  ask/code/local → llama_query()        │
+    │  8b            → ollama run sashi-llama-8b
+    │  write         → llm-write.sh          │
+    │  file          → file-ops.sh           │
+    │  online/cloud  → online_query() → hf() │
+    │  grpc          → grpc_server.py :50051 │
+    │  probe         → probe_server.py :50052│
+    │  kanban        → ~/kanban-pmo/kanban/  │
+    └─────┬──────────────────────────────────┘
+          │
+    ┌─────▼──────┐   ┌──────────────┐   ┌────────────┐
+    │ ollama run │   │  OpenRouter  │   │ HuggingFace│
+    │ fast-sashi │   │  (cloud key) │   │ (free tier)│
+    │ (3B local) │   └──────────────┘   └────────────┘
+    └─────┬──────┘
+          │
+    log_query() → history.db (async, non-blocking)
+```
+
+### BDPM Governance
+
+The 4-layer BDPM model spans all three repos. Diagram: `kanban-pmo/docs/diagrams/bdpm-swimlanes.svg`
+
+| Layer | Owner | Scope |
+|-------|-------|-------|
+| **Business** | kanban-pmo | Sprint intake, milestone gates, 11-repo registry |
+| **Development** | ollama-local | git push, model build, test, smart-push |
+| **Production** | ollama-local | gRPC dispatch, inference, file write, DB log |
+| **Monitoring** | persist-memory-probe | Cred audit, health check, doc sync |
+
+---
 
 ## Models
 
-### Available Models
-
 | Model | Params | Size | Speed | Modelfile | Use Case |
 |-------|--------|------|-------|-----------|----------|
-| **fast-sashi** | 3B | 2.0GB | 4.0 tok/s | `Modelfile.fast` | **Default** — concise, date-aware |
-| **sashi-llama** | 3B | 2.0GB | 4.0 tok/s | `Modelfile.system` | Full system prompt, verbose context |
-| **sashi-llama-8b** | 8B | 4.9GB | 3.7 tok/s | `Modelfile.8b` | Better quality, needs swap |
-| llama3.2:1b | 1B | 1.3GB | fast | (base) | Termux/mobile — lightweight |
+| `fast-sashi` | 3B | 2.0GB | ~4.0 tok/s | `Modelfile.fast` | **Default** — `sashi ask/code/write` |
+| `sashi-llama-8b` | 8B | 4.9GB | ~3.7 tok/s | `Modelfile.8b` | `sashi 8b` — better reasoning, needs swap |
+| `llama3.2:latest` | 3B | 2.0GB | ~4.0 tok/s | (base) | Fallback when `LOCAL_MODEL=llama3.2` |
+| `llama3.2:1b` | 1B | 1.3GB | fast | (base) | Termux/Android auto-selected |
 
-### Model Selection
+**Stale models** (in `ollama list` but superseded):
+- `sashi-llama-fast:latest` — old name for `fast-sashi`, do not use
+- `turbo-llama`, `fast-llama`, `sashi-llama` — pre-v3.2.3 iterations
 
+Rebuild canonical models:
 ```bash
-# Desktop default (fast-sashi, 3B, concise)
-sashi ask "explain TCP"
-
-# Full context model (bigger system prompt)
-ollama run sashi-llama "explain TCP in detail"
-
-# Switch to 8B for quality (edit .env: LOCAL_MODEL=sashi-llama-8b)
-ollama run sashi-llama-8b "explain TCP in detail"
-
-# Termux auto-detects and uses 1B
-# (handled by .env.termux override)
-```
-
-All custom models include system prompts with date awareness. The default `fast-sashi` is concise; `sashi-llama` has full hardware/file/alias context.
-
----
-
-## MCP Structure
-
-### MCP Groups
-
-| Category | Name | Type | Description |
-|----------|------|------|-------------|
-| **Core** | sashi | CLI | Main router and interface |
-| **Model** | llama | Local | Llama 3.2/3.1 via Ollama — primary |
-| **Model** | claude | Integration | Claude Code CLI — complex tasks |
-| **Automation** | pipeline | gRPC | Inference + file write + orchestration |
-| **Protocol** | voice | Input | Google Speech-to-Text |
-| **Protocol** | gmail | Context | Gmail API for email data |
-
-### Route Comparison
-
-| Route | Type | Speed | Context | Cost | Use Case |
-|-------|------|-------|---------|------|----------|
-| `sashi ask` | Local (3B) | ~4 tok/s | 4K | Free | Quick queries |
-| `sashi ask` (8B) | Local (8B) | ~3.7 tok/s | 4K | Free | Better reasoning |
-| `sashi online` | Cloud (OpenRouter) | ~2s | varies | Free tier | When local isn't enough |
-
----
-
-## Installation
-
-### One-liner (recommended)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/tmdev012/ollama-local/main/install.sh | bash
-```
-
-Then reload your shell:
-
-```bash
-source ~/.bashrc   # or source ~/.zshrc
-sashi status
-```
-
-The installer handles everything: Ollama, llama3.2 model, CPU tuning, DB init, shell aliases.
-
-#### Flags
-
-```bash
-# Skip model download (if you already have llama3.2)
-curl -fsSL .../install.sh | bash -s -- --no-models
-
-# Skip CPU governor tuning (e.g. on a server)
-curl -fsSL .../install.sh | bash -s -- --no-gpu-tune
-
-# Termux / Android
-curl -fsSL .../install.sh | bash -s -- --termux
-```
-
-### Manual Install (Linux)
-
-```bash
-# 1. Install Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-sudo systemctl enable --now ollama
-
-# 2. Clone repo
-git clone https://github.com/tmdev012/ollama-local.git ~/ollama-local
-
-# 3. Pull base model + build optimized custom models
-ollama pull llama3.2
 ollama create fast-sashi -f ~/ollama-local/Modelfile.fast
-
-# 4. (Optional) 8B model — needs 8GB+ swap
-ollama pull llama3.1:8b
 ollama create sashi-llama-8b -f ~/ollama-local/Modelfile.8b
-
-# 5. Apply performance tuning (see Performance Tuning section above)
-
-# 6. Add to shell
-echo 'export PATH="$HOME/ollama-local:$PATH"' >> ~/.bashrc
-echo 'source ~/ollama-local/lib/sh/aliases.sh' >> ~/.bashrc
-source ~/.bashrc
-```
-
-### Docker
-
-```bash
-docker-compose up -d
-docker exec -it sashi-ai bash
 ```
 
 ---
 
-## Usage
+## Variables Reference
 
-### Basic Commands
+All variables sourced from `.env` at startup. Override individually via environment.
 
-```bash
-# Quick question (local llama 3B)
-sashi ask "What is Python?"
-sask "Explain REST APIs"
+### `.env` — Config Layer
 
-# 8B quality route (better reasoning)
-sashi 8b "Explain async/await in depth"
-s8b "complex question"
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `LOCAL_MODEL` | `llama3.2` | Model used by `llama_query()` |
+| `OLLAMA_HOST` | `http://localhost:11434` | Ollama API endpoint |
+| `OPENROUTER_API_KEY` | *(empty)* | Cloud fallback — get at openrouter.ai/keys |
+| `OPENROUTER_MODEL` | `meta-llama/llama-3.1-8b-instruct:free` | Cloud model |
+| `HF_TOKEN` | *(empty)* | HuggingFace token (optional, extends rate limit) |
+| `HF_MODEL` | `meta-llama/Llama-3.2-3B-Instruct` | HF inference model |
+| `SASHI_DB` | `~/ollama-local/db/history.db` | SQLite path override |
+| `SASHI_HOME` | `~/ollama-local` | Repo root |
+| `KANBAN_DIR` | `~/kanban-pmo/kanban` | Kanban cards directory |
+| `PROBE_DIR` | `~/persist-memory-probe` | Probe repo root |
+| `GRPC_KANBAN_PORT` | `50051` | kanban-pmo gRPC port |
+| `GRPC_PROBE_PORT` | `50052` | persist-memory-probe gRPC port |
+| `OFFLINE_MODE` | `true` | Disables outbound network checks |
+| `KANBAN_PMO_DIR` | `/home/tmdev012/kanban-pmo` | Governor path |
+| `GCP_PROJECT_ID` | `tm012-git-tracking` | Google Cloud project |
+| `ANDROID_HOME` | `~/Android/Sdk` | Android SDK root |
+| `JAVA_HOME` | `/usr/lib/jvm/java-17-openjdk-amd64` | JDK path |
 
-# Code help
-sashi code "Write a sorting function in Python"
-scode "Write a sorting function in Python"
+### Runtime Variables (set by `sashi` at startup)
 
-# Interactive chat (streams via ollama run)
-sashi chat
-schat
+| Variable | Set From | Purpose |
+|----------|----------|---------|
+| `SCRIPT_DIR` | `${BASH_SOURCE[0]}` | Absolute path to repo root |
+| `_OS_TYPE` | `uname -o` | Platform: `Android` or `GNU/Linux` |
+| `VERSION` | hardcoded `3.2.3` | Current version |
+| `DB_PATH` | `${SASHI_DB:-$SCRIPT_DIR/db/history.db}` | Active DB path |
+| `MODEL` | `${LOCAL_MODEL:-llama3.2}` | Active inference model |
+| `OLLAMA_API` | `${OLLAMA_HOST:-http://localhost:11434}` | Active API base |
+| `STDIN_DATA` | `cat -` if non-TTY | Piped input captured at startup |
+| `RED/GREEN/BLUE/YELLOW/NC` | ANSI codes | Terminal colour constants |
 
-# Cloud fallback (when local isn't enough)
-sashi online "Explain quantum computing in depth"
-sonline "complex question here"
+### `llm-write.sh` Sub-Variables
 
-# Voice input
-sashi voice              # Single prompt
-sashi voice --continuous # Keep listening
-sashi voice --gui        # Desktop app
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `LLM_MODEL` | `${MODEL:-llama3.2}` | Model used by `_lw_infer()` |
+| `_LW_RED/GRN/YLW/CYN/BLD/DIM/NC` | ANSI codes | Write pipeline colours |
 
-# System status
-sashi status    # or: sstatus — shows gRPC health + latest changelog
-sashi models    # or: smodels
-sashi history   # or: shistory
-sashi changelog # View CHANGELOG.md inline
-```
+### `aliases.sh` Variable
 
-### gRPC Daemon Management
-
-```bash
-# Start both gRPC servers (:50051 kanban-pmo, :50052 probe)
-sashi grpc start
-
-# Check daemon health
-sashi grpc status
-
-# Stop / restart
-sashi grpc stop
-sashi grpc restart
-
-# Tail logs
-sashi grpc logs
-```
-
-### Probe CLI (via :50052)
-
-```bash
-# Sync a repo into probe.db
-sashi probe sync [repo]
-
-# List registered repos
-sashi probe list
-
-# Get credential recommendation
-sashi probe recommend <operation>
-
-# Export training dialogs
-sashi probe export [N]
-
-# Write a file via gRPC
-sashi probe write <path> <content>
-
-# Check probe server health
-sashi probe status
-```
-
-### IDE
-
-```bash
-# Launch terminal Android/Kotlin IDE
-sashi ide [project-path]
-```
-
-### Kanban
-
-```bash
-sashi kanban board    # Full board view
-sashi kanban wip      # In-progress cards
-sashi kanban backlog  # Backlog
-sashi kanban state    # Summary counts
-```
-
-### Pipe Support
-
-```bash
-cat code.py | sashi code "explain this"
-git diff | sashi code "review this"
-cat README.md | summarize
-```
-
-### Git Pipeline
-
-```bash
-smartpush              # Full interactive smart commit (sp, gpush)
-gitpush "message"      # Add + Commit + Push (gpp, ship)
-ghist                  # View commit history from SQLite
-gver                   # List version tags
-gissue 42              # Find commits by issue number
-```
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `_SASHI_DIR` | `${_SASHI_DIR:-$HOME/ollama-local}` | Alias path base (exported) |
 
 ---
 
-## Version History
-
-| Version | Date | Key Change |
-|---------|------|------------|
-| v1.0 | 2026-02 | Initial CLI, `ollama run` calls |
-| v2.0 | 2026-02-05 | HTTP API optimization, 5-8s→2.2s, voice, 22 clean aliases |
-| v3.0 | 2026-02-08 | Back to `ollama run` (streams, keeps model hot), DeepSeek removed |
-| v3.1 | 2026-02-19 | banner.sh, aliases.sh, kanban subcommand, smart-push, gRPC stubs |
-| v3.2.0 | 2026-02-22 | gRPC daemon manager, probe CLI, IDE, 8B routing, 245 training dialogs |
-| v3.2.1 | 2026-03-01 | `sashi usb/wifi/hf`, USB vendor DB, WiFi ADB, HuggingFace fallback |
-| **v3.2.2** | **2026-03-01** | **30 advanced filesystem aliases, `sashi wallog` (Modelfile ↔ WAL log)** |
-
-### v3.2.1→v3.2.2 Changes
-
-| Aspect | v3.2.1 | v3.2.2 |
-|--------|--------|--------|
-| **Filesystem aliases** | none | **30 aliases** across 9 categories (find/disk/list/archive/copy/perms/symlink/checksum/watch) |
-| **WAL log command** | none | **`sashi wallog [N]`** — Modelfile git log + SQL changelog + commits + WAL checkpoint |
-| **Alias shortcut** | — | **`swallog`** |
-| **SVGs** | v3.2.0 labels | **v3.2.2** across bdpm-swimlanes, gazette-architecture, process-map |
-| **Router label** | v2.0 | **v3.2.2** (process-map-animated.svg) |
-
-### v3.1→v3.2 Changes
-
-| Aspect | v3.1 | v3.2 |
-|--------|------|------|
-| **gRPC** | hollow ProbeSyncServicer stub | **daemon manager** `:50051` + `:50052` via `sashi grpc` |
-| **Probe CLI** | sync-only via kanban-pmo | **full probe CLI** via :50052 (list/recommend/export/write) |
-| **IDE** | none | **`sashi ide`** — terminal Android/Kotlin IDE (rich TUI, ADB) |
-| **8B routing** | manual model switch | **`sashi 8b <prompt>`** — direct 8B quality route |
-| **Training data** | 0 dialogs | **245 dialogs** in probe.db (multi_ternary, filewrite_grpc, android_ide) |
-| **Modelfiles** | v4.0 | **v4.1** — gRPC + probe + IDE + Android docs in system prompt |
-
----
-
-## Termux (Mobile)
-
-Sashi auto-detects Termux and switches to a lighter model.
-
-### Quick Setup
+## Commands
 
 ```bash
-# In Termux (install from F-Droid, NOT Play Store)
-pkg update && pkg install git openssh
-git clone git@github.com:tmdev012/ollama-local.git ~/ollama-local
+sashi ask <prompt>         # Local 3B inference
+sashi code <prompt>        # Code-focused prompt
+sashi 8b <prompt>          # 8B inference (90s timeout)
+sashi chat                 # Interactive ollama run session
+sashi online <prompt>      # OpenRouter → HuggingFace fallback
+sashi hf <prompt>          # HuggingFace direct
 
-# Option A: Local ollama on phone (6GB+ RAM)
-pkg install golang cmake git
-# Build ollama from source, then:
-ollama pull llama3.2:1b
-ln -sf ~/ollama-local/sashi ~/bin/sashi
-sashi ask "hello from my phone"
+sashi write <file> <prompt>          # LLM → atomic write
+sashi write --read <in> <out> <p>    # File → LLM → write
+sashi write --append <file> <p>      # Append AI output
+sashi write --fmt json <out> <p>     # Validated format output
+sashi write --safe <file> <p>        # With fallback model
 
-# Option B: Cloud route (any phone)
-# Set OPENROUTER_API_KEY in .env
-sashi online "hello from my phone"
-```
+sashi file read|write|append|parse|copy|move|delete|batch|check|recover|info|stream|split|join|rotate|detect
 
-### How Auto-Detection Works
+sashi status               # Full system status + gRPC health + uname -a
+sashi models               # ollama list
+sashi history              # Last 20 queries from history.db
+sashi wallog [N]           # Modelfile git log + SQL WAL changelog
+sashi changelog            # Print CHANGELOG.md
 
-```bash
-# In sashi (line 8):
-[[ -n "$TERMUX_VERSION" || -d "/data/data/com.termux" ]] && source .env.termux
+sashi grpc start|stop|restart|status|logs
+sashi probe sync|list|recommend|export|write|status
+sashi kanban board|state|backlog|wip|open|closed
 
-# .env.termux sets:
-LOCAL_MODEL=llama3.2:1b    # 1B instead of 3B
-```
+sashi usb scan|watch|storage|details|tree|search|export
+sashi wifi init|connect|scan|status|logcat|shell|disconnect
+sashi adb status|devices|wireless|shell|logcat|install|push|pull
 
-### Model Sizing for Phones
-
-| Phone RAM | Model | Size | Speed |
-|-----------|-------|------|-------|
-| 3-4GB | smollm2:1.7b | 1.0GB | Fast |
-| 4-6GB | llama3.2:1b | 1.3GB | Fast |
-| 6-8GB | llama3.2:3b | 2.0GB | Medium |
-
-See `docs/termux-ollama-plan.md` for full analysis.
-
----
-
-## SQLite Schema
-
-### ERD Diagram
-
-```
-┌─────────────────────────────────────┐
-│            queries                  │
-├─────────────────────────────────────┤
-│ PK id              INTEGER          │
-│    timestamp       DATETIME         │
-│    model           TEXT        ◄────┼─── idx_queries_model
-│    prompt          TEXT             │
-│    response_length INTEGER          │
-│    duration_ms     INTEGER     ◄────┼─── idx_queries_duration
-│                               ◄─────┼─── idx_queries_timestamp
-└───────────────┬─────────────────────┘
-                │ 1:N
-┌───────────────▼─────────────────────┐
-│           favorites                 │
-├─────────────────────────────────────┤
-│ PK id              INTEGER          │
-│ FK query_id        INTEGER     ◄────┼─── idx_favorites_query
-│    label           TEXT             │
-└─────────────────────────────────────┘
-
-┌─────────────────────────────────────┐
-│          mcp_groups                 │
-├─────────────────────────────────────┤
-│ PK id              INTEGER          │
-│    name            TEXT (UNIQUE)    │
-│    category        TEXT        ◄────┼─── idx_mcp_groups_category
-│    description     TEXT             │
-│    config_path     TEXT             │
-│    enabled         INTEGER     ◄────┼─── idx_mcp_groups_enabled
-│    created_at      DATETIME         │
-│    updated_at      DATETIME         │
-└─────────────────────────────────────┘
-
-┌─────────────────────────────────────┐
-│            commits                  │
-├─────────────────────────────────────┤
-│ PK id              INTEGER          │
-│    hash            TEXT        ◄────┼─── idx_commits_hash
-│    message         TEXT             │
-│    auto_description TEXT            │
-│    issue_number    TEXT        ◄────┼─── idx_commits_issue
-│    version_tag     TEXT        ◄────┼─── idx_commits_version
-│    branch          TEXT             │
-│    files_changed   INTEGER          │
-│    lines_added     INTEGER          │
-│    lines_deleted   INTEGER          │
-│    categories      TEXT             │
-│    timestamp       DATETIME         │
-│    tree_backup     TEXT             │
-└─────────────────────────────────────┘
-```
-
-### Tables
-
-| Table | Rows | Indexes | Purpose |
-|-------|------|---------|---------|
-| queries | N | 3 | AI query history |
-| favorites | N | 1 | Starred queries |
-| mcp_groups | 6 | 2 | MCP provider registry |
-| commits | N | 5 | Smart push commit tracking |
-
-### Indexes (11 total)
-
-```sql
--- queries
-CREATE INDEX idx_queries_model ON queries(model);
-CREATE INDEX idx_queries_timestamp ON queries(timestamp);
-CREATE INDEX idx_queries_duration ON queries(duration_ms);
-
--- favorites
-CREATE INDEX idx_favorites_query ON favorites(query_id);
-
--- mcp_groups
-CREATE INDEX idx_mcp_groups_category ON mcp_groups(category);
-CREATE INDEX idx_mcp_groups_enabled ON mcp_groups(enabled);
-
--- commits
-CREATE INDEX idx_commits_hash ON commits(hash);
-CREATE INDEX idx_commits_version ON commits(version_tag);
-CREATE INDEX idx_commits_issue ON commits(issue_number);
-CREATE INDEX idx_commits_branch ON commits(branch);
-CREATE INDEX idx_commits_timestamp ON commits(timestamp);
+sashi android-studio [project-path]   # Terminal Kotlin/Android IDE
+sashi hf <prompt>                     # HuggingFace Inference API
 ```
 
 ---
 
 ## Aliases Reference
 
-### SASHI (AI)
+Defined in `~/ollama-local/lib/sh/aliases.sh`.
+Sourced by `~/.bashrc` (line 125) and `~/.zshrc` (line 120) — available in both shells.
+All aliases use `$_SASHI_DIR` (exported) so they survive shell restarts.
 
-| Alias | Command | Description |
-|-------|---------|-------------|
-| `s` | `sashi` | Main interface |
-| `sask` | `sashi ask` | Quick question (local 3B) |
-| `s8b` | `sashi 8b` | 8B quality route |
-| `shf` | `sashi hf` | HuggingFace Inference API (free tier) |
-| `scode` | `sashi code` | Code help (local llama) |
-| `slocal` | `sashi local` | Same as ask |
-| `schat` | `sashi chat` | Interactive chat |
-| `sstatus` | `sashi status` | System status + gRPC health |
-| `smodels` | `sashi models` | List models |
-| `shistory` | `sashi history` | Query history |
-| `schangelog` | `sashi changelog` | Full CHANGELOG.md |
-| `swallog` | `sashi wallog [N]` | Modelfile git log + SQL WAL changelog |
-| `skanban` | `sashi kanban board` | Kanban board |
-| `sgmail` | `sashi gmail` | Email context |
-| `usb-scan` | `sashi usb scan` | List USB devices with vendor names |
-| `usb-watch` | `sashi usb watch` | Real-time USB plug/unplug events |
-| `wifi-init` | `sashi wifi init` | ADB WiFi: tcpip + auto IP detect |
-| `wifi-status` | `sashi wifi status` | List wireless ADB devices |
+### Core AI
 
-### Filesystem (v3.2.2 — 30 aliases)
+| Alias | Backs To |
+|-------|----------|
+| `s`, `ai` | `sashi ask` → `llama_query()` |
+| `sask` | `sashi ask` |
+| `scode` | `sashi code` → `code_query()` |
+| `s8b` | `sashi 8b` → `ollama run sashi-llama-8b` |
+| `schat` | `sashi chat` → `interactive_chat()` → `ollama run` |
+| `sstatus` | `sashi status` → `show_status()` |
+| `shistory` | `sashi history` → `show_history()` |
+| `smodels` | `sashi models` → `ollama list` |
+| `schangelog` | `sashi changelog` → `cat CHANGELOG.md` |
+| `swallog` | `sashi wallog` → git log + sqlite3 |
+| `skanban` | `sashi kanban board` |
+| `sgmail` | `sashi gmail` → `mcp/gmail/tools/gmail-cli` |
+| `sonline`, `scloud` | `sashi online` → `online_query()` |
+| `shf`, `hf` | `sashi hf` → `hf_query()` |
+| `aihelp` | `sashi help` → `show_help()` |
 
-#### Find & Filter
+### LLM Write System
 
-| Alias | Expands to | Example |
-|-------|-----------|---------|
-| `ff` | `find . -type f -name` | `ff "*.log"` |
-| `ffd` | `find . -type d -name` | `ffd "build*"` |
-| `ffl` | `find . -type l` | list all symlinks |
-| `fmod` | `find . -type f -mmin` | `fmod -60` (last 60 min) |
-| `fsize` | `find . -type f -size` | `fsize +100M` |
-| `fnew` | `find . -type f -newer` | `fnew ref-file` |
-| `fdup` | md5sum dedup pipeline | find duplicate files |
-| `fempty` | `find . -type f -empty` | zero-byte files |
-| `fdangling` | find broken symlinks | dangling symlink scan |
+| Alias | Backs To |
+|-------|----------|
+| `swrite` | `sashi write` → `llmw_write()` |
+| `swrite-read` | `--read` → `llmw_process()` |
+| `swrite-append` | `--append` → `llmw_append()` |
+| `swrite-batch` | `--batch` → `llmw_batch()` |
+| `swrite-json/csv/md/sh` | `--fmt <fmt>` → `llmw_write_fmt()` |
+| `swrite-safe` | `--safe` → `llmw_safe_write()` |
+| `swrite-pipe` | `--pipe` → `llmw_pipe()` |
 
-#### Disk Analysis
+### File Operations
 
-| Alias | Expands to | Notes |
-|-------|-----------|-------|
-| `duh` | `du -sh * \| sort -rh` | current dir, size-sorted |
-| `dua` | `du -ah --max-depth=1 \| sort -rh` | all entries, depth 1 |
-| `dut` | `du -sh */` | dirs only, sorted |
-| `dfh` | `df -hT --exclude-type=tmpfs …` | real disks only |
-| `dfio` | `df -i` | inode usage |
+| Alias | Backs To |
+|-------|----------|
+| `sfile` | `sashi file` → `file-ops.sh` |
+| `sfile-info` | `fops_info()` |
+| `sfile-detect` | `fops_detect_op()` |
+| `sfile-check` | `fops_check_corrupt()` |
+| `sfile-read` | `fops_read()` |
+| `sfile-write` | `fops_write()` |
+| `sfile-append` | `fops_append()` |
+| `sfile-parse` | `fops_parse_*()` |
+| `sfile-copy` | `fops_copy()` |
+| `sfile-move` | `fops_move()` |
+| `sfile-delete` | `fops_delete()` |
+| `sfile-batch` | `fops_batch()` |
+| `sfile-recover` | `fops_recover()` |
+| `sfile-stream` | `fops_stream()` |
+| `sfile-split` | `fops_split()` |
+| `sfile-join` | `fops_join()` |
+| `sfile-rotate` | `fops_rotate()` |
 
-#### Directory Listing
+### Hardware / Android
 
-| Alias | Expands to | Notes |
-|-------|-----------|-------|
-| `lsl` | `ls -lahF --color` | full listing |
-| `lst` | `ls -lath --color` | sorted by time |
-| `lsz` | `ls -laSh --color` | sorted by size |
-| `lsd` | `ls -lah --group-directories-first` | dirs first |
-| `lsr` | `ls -lahR --color` | recursive |
+| Alias | Backs To |
+|-------|----------|
+| `usb`, `usb-scan`, `usb-watch`, `usb-storage` | `sashi usb` → `usb-monitor.sh` |
+| `wifi`, `wifi-init`, `wifi-connect`, `wifi-scan`, `wifi-status`, `wifi-logcat` | `sashi wifi` → `wifi-debug.sh` |
+| `sadb`, `sdev`, `slogcat` | `sashi adb` → `~/Android/platform-tools/adb` |
+| `android-studio`, `side` | `sashi android-studio` → `mcp/ide/sashi-ide` (Python Rich TUI) |
 
-#### Archive
+### gRPC
 
-| Alias | Usage | Notes |
-|-------|-------|-------|
-| `tarc` | `tarc out.tar.gz dir/` | create tar.gz |
-| `tarx` | `tarx file.tar.gz` | extract |
-| `tarxv` | `tarxv file.tar.gz` | extract verbose |
-| `tarl` | `tarl file.tar.gz` | list contents |
-| `tarbz` | `tarbz out.tar.bz2 dir/` | bzip2 |
-| `zipr` | `zipr out.zip dir/` | zip recursive |
+| Alias | Backs To |
+|-------|----------|
+| `sgrpc`, `sgrpc-start`, `sgrpc-status` | `sashi grpc` → `grpc_server.py` :50051 |
+| `sprobe`, `sprobe-list`, `sprobe-sync` | `sashi probe` → `probe_server.py` :50052 |
 
-#### Copy / Move / Delete
+### Ollama Control
 
-| Alias | Expands to | Notes |
-|-------|-----------|-------|
-| `cpv` | `rsync -ah --progress` | cp with progress bar |
-| `cpvr` | `rsync -ahr --progress --delete` | mirror dir |
-| `mvv` | `mv -v` | verbose move |
-| `rmv` | `rm -iv` | interactive + verbose |
-| `rmrf` | `rm -rf` | explicit destructive intent |
+| Alias | Backs To |
+|-------|----------|
+| `ollama-up` | `ollama serve &>/dev/null &` |
+| `ollama-down` | `pkill -f "ollama serve"` |
+| `ollama-restart` | down + up |
+| `ollama-logs` | `journalctl -u ollama` |
+| `ollama-boost` | `scripts/ollama-boost.sh` |
 
-#### Permissions & Ownership
+### Navigation
 
-| Alias | Expands to | Notes |
-|-------|-----------|-------|
-| `chmodr` | `chmod -R` | recursive chmod |
-| `chownr` | `chown -R` | recursive chown |
-| `mkexec` | `chmod +x` | make executable |
-| `fixperms` | find -exec chmod 644/755 | fix file/dir perms |
-
-#### Symlinks
-
-| Alias | Expands to | Notes |
-|-------|-----------|-------|
-| `lnr` | `ln -sr` | relative symlink |
-| `lna` | `ln -sf` | absolute/force symlink |
-| `lslinks` | find -type l -exec ls | show all symlinks + targets |
-
-#### Checksum & Compare
-
-| Alias | Expands to | Notes |
-|-------|-----------|-------|
-| `fhash` | `sha256sum` | hash a file |
-| `fcheck` | `sha256sum -c` | verify checksum file |
-| `mdiff` | `diff -rq` | compare two directories |
-| `mdiffu` | `diff -ru` | unified diff of dirs |
-
-#### Watch & Monitor
-
-| Alias | Expands to | Notes |
-|-------|-----------|-------|
-| `fwatch` | `watch -n1 "ls -lah"` | watch dir every 1s |
-| `fwatchp` | `inotifywait -rm -e modify,create,delete,move` | inotify on path |
+| Alias | Backs To |
+|-------|----------|
+| `cds` | `cd ~/ollama-local` |
+| `cdp` | `cd ~/persist-memory-probe` |
+| `cdk` | `cd ~/kanban-pmo` |
+| `cdf` | `cd ~/football-telemetry` |
 
 ### Git
 
-| Alias | Command | Description |
-|-------|---------|-------------|
-| `gs` | `git status -sb` | Short status |
-| `gd` | `git diff` | Show diff |
-| `gl` | `git log --oneline -20` | Short log |
-| `ga` | `git add` | Stage files |
-| `gaa` | `git add -A` | Stage all |
-| `gc` | `git commit -m` | Commit |
-| `gp` | `git push` | Push |
-| `gpl` | `git pull` | Pull |
-| `gb` | `git branch` | Branches |
-| `gco` | `git checkout` | Checkout |
+| Alias | Command |
+|-------|---------|
+| `gs` | `git status -sb` |
+| `gd` | `git diff` |
+| `gds` | `git diff --staged` |
+| `gl` | `git log --oneline -20` |
+| `gla` | `git log --all --graph --oneline -30` |
+| `ga/gaa/gap` | `git add` / `git add -A` / `git add -p` |
+| `gc` | `git commit -m` |
+| `gp/gpl` | `git push` / `git pull` |
+| `gb/gco` | `git branch` / `git checkout` |
+| `smartpush`, `sp`, `gpush` | `scripts/smart-push.sh` |
 
-### Git Pipeline
+### Filesystem (30 aliases across 9 categories)
 
-| Alias | Description |
-|-------|-------------|
-| `gitpush "msg"` | Add + Commit + Push |
-| `gpp "msg"` | Short for gitpush |
-| `ship "msg"` | Another alias |
-| `gship` | Interactive (prompts for message) |
+| Category | Aliases |
+|----------|---------|
+| Find/filter | `ff ffd ffl fmod fsize fnew fdup fempty fdangling` |
+| Disk | `duh dua dut dfh dfio` |
+| Listing | `lsl lst lsz lsd lsr` |
+| Archive | `tarc tarx tarxv tarl tarbz zipr` |
+| Copy/move/delete | `cpv cpvr mvv rmv rmrf` |
+| Permissions | `chmodr chownr mkexec fixperms` |
+| Symlinks | `lnr lna lslinks` |
+| Checksum | `fhash fcheck mdiff mdiffu` |
+| Watch | `fwatch fwatchp` |
 
-### Smart Push (v2.0)
+---
 
-| Alias | Description |
-|-------|-------------|
-| `smartpush` | Full interactive smart commit |
-| `sp` | Short alias for smartpush |
-| `gpush` | Another alias |
-| `ghist` | View commit history from SQLite |
-| `gver` | List all version tags |
-| `gissue "N"` | Find commits by issue number |
+## Android / USB Hello World
 
-### Ollama
+The `android-studio` alias (`side`) launches `mcp/ide/sashi-ide` — a Python Rich TUI
+for managing Android/Kotlin projects. It requires a project path; the default is
+`$HOME/projects/hello-android`.
 
-| Alias | Command | Description |
-|-------|---------|-------------|
-| `ollama-up` | `systemctl start ollama` | Start service |
-| `ollama-down` | `systemctl stop ollama` | Stop service |
-| `ollama-status` | Check status + list | Status |
-| `ollama-logs` | `journalctl -u ollama` | View logs |
+**Current state:** The IDE binary exists and dependencies are installed (`rich`, `adb`
+at `~/Android/platform-tools/adb`). The default project directory does not exist yet.
 
-### Pipe Helpers
+### Create a Hello World project and connect via USB
 
-| Alias | Description |
-|-------|-------------|
-| `analyze` | `cat file \| analyze` |
-| `summarize` | `cat file \| summarize` |
-| `explain` | `cat file \| explain` |
-| `review` | `cat file \| review` |
+```bash
+# 1. Create project directory
+mkdir -p ~/projects/hello-android
+
+# 2. Launch IDE
+android-studio ~/projects/hello-android
+# or: sashi android-studio ~/projects/hello-android
+
+# 3. Check USB device is visible
+sashi usb scan           # List USB devices
+sashi adb status         # adb devices -l
+
+# 4. If phone not shown, enable USB debugging on phone:
+#    Settings → Developer options → USB debugging ON
+#    Then: sashi adb status
+
+# 5. Wireless ADB (optional, after USB pairing)
+sashi adb wireless       # Switch device to tcpip mode
+sashi wifi status        # Confirm wireless connection
+```
+
+### ADB path
+
+```
+~/Android/platform-tools/adb  (installed, executable)
+```
+
+If not installed: `bash ~/ollama-local/scripts/android-setup.sh`
+
+---
+
+## Performance Tuning
+
+Benchmarked on i7-6500U (2C/4T, 7.6GB RAM, no GPU).
+
+| Setting | Wrong | Right | Effect |
+|---------|-------|-------|--------|
+| `num_thread` | 4 | **2** | HT contention = 30% slower at 4 |
+| CPU governor | `powersave` | **`performance`** | Prevents throttle mid-inference |
+| `OLLAMA_MAX_LOADED_MODELS` | default | **1** | Prevents RAM contention |
+| `OLLAMA_KEEP_ALIVE` | 5m | **30m** | Model stays hot |
+
+```bash
+# CPU governor (one-time, needs sudo)
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+
+# Ollama service tuning
+sudo mkdir -p /etc/systemd/system/ollama.service.d
+cat << 'EOF' | sudo tee /etc/systemd/system/ollama.service.d/override.conf
+[Service]
+Environment="OLLAMA_NUM_PARALLEL=1"
+Environment="OLLAMA_MAX_LOADED_MODELS=1"
+Environment="OLLAMA_KEEP_ALIVE=30m"
+EOF
+sudo systemctl daemon-reload && sudo systemctl restart ollama
+
+# Or use the alias:
+ollama-boost
+```
+
+| Model | tok/s (num_thread=2) | tok/s (num_thread=4) |
+|-------|---------------------|---------------------|
+| fast-sashi 3B | ~4.0 | ~2.8 (-30%) |
+| sashi-llama-8b 8B | ~3.7 | ~3.0 (-19%) |
+
+---
+
+## SQLite Schema
+
+Database: `~/ollama-local/db/history.db` (WAL mode, shared across 3 repos)
+
+```sql
+-- Query history
+CREATE TABLE queries (
+    id              INTEGER PRIMARY KEY,
+    timestamp       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    model           TEXT,
+    prompt          TEXT,
+    response_length INTEGER,
+    duration_ms     INTEGER
+);
+
+-- Starred queries
+CREATE TABLE favorites (
+    id       INTEGER PRIMARY KEY,
+    query_id INTEGER REFERENCES queries(id),
+    label    TEXT
+);
+
+-- MCP provider registry
+CREATE TABLE mcp_groups (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT UNIQUE,
+    category    TEXT,
+    description TEXT,
+    config_path TEXT,
+    enabled     INTEGER,
+    created_at  DATETIME,
+    updated_at  DATETIME
+);
+
+-- Smart push commit tracking
+CREATE TABLE commits (
+    id               INTEGER PRIMARY KEY,
+    hash             TEXT,
+    message          TEXT,
+    auto_description TEXT,
+    issue_number     TEXT,
+    version_tag      TEXT,
+    branch           TEXT,
+    files_changed    INTEGER,
+    lines_added      INTEGER,
+    lines_deleted    INTEGER,
+    categories       TEXT,
+    timestamp        DATETIME,
+    tree_backup      TEXT
+);
+
+-- CHANGELOG entries (populated by wallog)
+CREATE TABLE changelog (
+    id      INTEGER PRIMARY KEY,
+    version TEXT,
+    date    TEXT,
+    summary TEXT
+);
+```
+
+---
+
+## JSONL Training Schema
+
+Training data at `training/sashi_v3.2.3_master.jsonl`.
+Format: ChatML — compatible with HuggingFace `datasets`, llama.cpp fine-tuning, and
+direct Modelfile `TEMPLATE` injection.
+
+```json
+{
+  "messages": [
+    {"role": "system",  "content": "<sashi system prompt>"},
+    {"role": "user",    "content": "<user query>"},
+    {"role": "assistant","content": "<expected response>"}
+  ]
+}
+```
+
+### Domain Coverage (232 dialogs)
+
+| Domain | Count | Source |
+|--------|-------|--------|
+| File operations (sashi file) | ~60 | lib/sh/file-ops.sh patterns |
+| LLM write modes (sashi write) | ~60 | lib/sh/llm-write.sh patterns |
+| Tool dispatch (ask/code/8b/grpc/probe) | ~50 | sashi command surface |
+| Multi-ternary shell logic | ~32 | lib/sh/multiternary.sh |
+| File-write + gRPC patterns | ~30 | probe.db export |
+
+### Relationship to Modelfiles
+
+`CHANGELOG.md` is injected verbatim into both `Modelfile.fast` and `Modelfile.8b`
+system prompts at build time. This means the model's internal knowledge of its own
+version history is derived from this file. Keep CHANGELOG accurate — it is a training
+artifact, not just documentation.
+
+---
+
+## Version History
+
+| Version | Date | Summary |
+|---------|------|---------|
+| v3.0.0 | 2026-02-08 | Three-repo foundation, shared SQLite WAL, gRPC contracts, DeepSeek removed |
+| v3.1.0 | 2026-02-19 | banner.sh, aliases.sh, kanban CLI, smart-push, ai-orchestrator |
+| v3.2.0 | 2026-02-22 | gRPC daemon manager, probe CLI, terminal IDE, 8B routing |
+| v3.2.1 | 2026-03-01 | `sashi usb/wifi/hf`, USB vendor DB, WiFi ADB, HuggingFace fallback |
+| v3.2.2 | 2026-03-01 | 30 filesystem aliases, `sashi wallog`, SVGs synced |
+| **v3.2.3** | **2026-03-01** | **file-ops.sh (516L), llm-write.sh (227L), 232 training dialogs** |
+| fix | 2026-03-11 | TERMUX_VERSION unbound var → `_OS_TYPE` from `uname -o` (c5af357) |
+
+---
+
+## Installation
+
+```bash
+# 1. Clone
+git clone git@github.com:tmdev012/ollama-local.git ~/ollama-local
+
+# 2. Base model + custom models
+ollama pull llama3.2
+ollama create fast-sashi -f ~/ollama-local/Modelfile.fast
+
+# 3. 8B (needs 8GB+ swap)
+ollama pull llama3.1:8b
+ollama create sashi-llama-8b -f ~/ollama-local/Modelfile.8b
+
+# 4. Shell aliases
+echo 'source ~/ollama-local/lib/sh/aliases.sh' >> ~/.bashrc
+echo 'source ~/ollama-local/lib/sh/aliases.sh' >> ~/.zshrc
+source ~/.bashrc
+
+# 5. Performance tuning
+bash ~/ollama-local/scripts/ollama-boost.sh
+```
 
 ---
 
@@ -761,218 +746,16 @@ CREATE INDEX idx_commits_timestamp ON commits(timestamp);
 
 | Component | Technology |
 |-----------|------------|
-| **Shell** | Bash / Zsh |
-| **Local AI** | Ollama + Llama 3.2 (3B) / Llama 3.1 (8B) |
-| **Cloud AI** | OpenRouter (free tier, fallback) |
-| **Database** | SQLite 3 (WAL mode, 10 tables, 27 indexes) |
-| **Voice** | Google Speech-to-Text |
-| **Mobile** | Termux (Android) |
-| **Container** | Docker + Compose |
-| **VCS** | Git + GitHub |
-| **Auth** | SSH (ED25519) |
-
-### Dependencies
-
-```bash
-# System
-curl jq python3 sqlite3
-
-# Ollama (required)
-ollama (+ llama3.2 model, optionally llama3.1:8b)
-
-# Voice (optional)
-portaudio19-dev python3-pyaudio python3-tk
-pip3 install SpeechRecognition
-```
+| Shell | Bash (`set -uo pipefail`) + Zsh |
+| Local AI | Ollama + Llama 3.2 3B / Llama 3.1 8B |
+| Cloud AI | OpenRouter (free tier) → HuggingFace (fallback) |
+| Database | SQLite 3 WAL (shared, 3 repos) |
+| IPC | gRPC (kanban :50051, probe :50052) |
+| Android | ADB + Android SDK 34 + platform-tools |
+| IDE | Python Rich TUI (`mcp/ide/sashi-ide`) |
+| VCS | Git + GitHub (tmdev012/ollama-local) |
+| Auth | SSH ED25519 + Google OAuth (Gmail) |
 
 ---
 
-## Termux Sync
-
-Sync shell configs between devices (Linux ↔ Android/Termux).
-
-### Usage
-
-```bash
-# On Linux - backup to GitHub
-termux-sync push
-
-# On Termux - restore from GitHub
-git clone git@github.com:tmdev012/ollama-local.git
-cd ollama-local
-./scripts/termux-sync.sh pull
-```
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `termux-sync push` | Upload configs to GitHub |
-| `termux-sync pull` | Download configs from GitHub |
-| `termux-sync status` | Show sync status |
-| `termux-sync auto` | Enable auto-sync on exit |
-
-### Synced Files
-
-- `~/.bashrc`
-- `~/.zshrc`
-- `~/.bash_history`
-- `~/.zsh_history`
-- `~/.gitconfig`
-- `~/.ssh/config`
-
----
-
-## Environment Variables
-
-```bash
-# .env file
-LOCAL_MODEL=llama3.2           # Default local model (or sashi-llama-8b for 8B)
-OLLAMA_HOST=http://localhost:11434
-OPENROUTER_API_KEY=            # Optional, for cloud fallback
-
-# Git
-GIT_USER=tmdev012
-GIT_EMAIL=tmdev012@users.noreply.github.com
-GIT_REPO=ollama-local
-```
-
----
-
-## Smart Push
-
-Intelligent git commit system with auto-categorization, version tagging, and issue linking.
-
-### Features
-
-- **Auto-categorization**: Files categorized by extension
-- **Branch comparison**: Shows ahead/behind vs main
-- **Version tagging**: Semantic versioning with auto-increment
-- **Issue linking**: Links commits to GitHub issues
-- **File tree backup**: Snapshots before each commit
-- **SQLite tracking**: All commits stored with metadata
-
-### File Categories
-
-| Category | Extensions |
-|----------|------------|
-| `frontend:styles` | html, css, scss, sass, less |
-| `frontend:script` | js, jsx, ts, tsx, vue, svelte |
-| `backend:python` | py, pyw |
-| `scripts:shell` | sh, bash, zsh, fish |
-| `config` | json, yaml, yml, toml, ini, conf, env |
-| `database` | sql, db, sqlite |
-| `docs` | md, txt, rst, doc |
-| `devops:docker` | Dockerfile, docker-compose* |
-| `testing` | test*, *_test.*, *spec.* |
-| `mcp:module` | mcp/* directory |
-
-### Usage
-
-```bash
-# Interactive mode
-smartpush
-
-# Output includes:
-# [1/8] Branch comparison (feature vs main)
-# [2/8] File tree backup
-# [3/8] File changes by category
-# [4/8] Diff summary (+lines/-lines)
-# [5/8] Auto-generated description
-# [6/8] Commit details (version tag, issue #)
-# [7/8] Commit
-# [8/8] Push
-```
-
-### Query History
-
-```bash
-# View commit history
-ghist
-
-# List version tags
-gver
-
-# Find commits by issue
-gissue 42
-```
-
----
-
-## Session Timeline
-
-### Git Commit History (10-hour session)
-
-| Commit | Tag | Description | Files |
-|--------|-----|-------------|-------|
-| `faaef58` | - | Clean: MCP structure with sashi CLI | 16 |
-| `b57005f` | - | Add Gmail module for email context | 4 |
-| `b619c56` | - | v2.0.0: SASHI optimization, voice, Git/SSH | 17 |
-| `373647c` | - | Add termux-sync for cross-device backup | 2 |
-| `d0445aa` | - | Add comprehensive README | 1 |
-| `1ff6995` | - | Add smart-push v2.0 | 1 |
-| `1904374` | v0.0.1 | Smart alias for YAML webhooks | 1 |
-| `4c1981b` | v0.0.2 | Filetree update - structure changes | 1 |
-| `bcef945` | - | Timestamped filetree monitoring | 1 |
-| `0ef3279` | - | MCP module directories consistency | 3 |
-
-### Session Stats
-
-```
-Total commits:     10
-Files created:     30+
-Files modified:    12
-Lines added:       4,500+
-Lines deleted:     400+
-Tables created:    4
-Indexes created:   11
-Aliases added:     25+
-Duration:          ~10 hours
-```
-
-### Key Accomplishments
-
-1. **MCP Architecture** - 5 modules (claude, llama, voice, gmail, pipeline)
-2. **SASHI v2.0** - HTTP API optimization (5-8s → 2.2s)
-3. **Voice Input** - CLI + GUI with Google Speech-to-Text
-4. **Smart Push** - Auto-categorization, versioning, SQLite tracking
-5. **Alias Cleanup** - 43 broken → 22 clean MCP-aligned
-6. **SQLite Schema** - 4 tables, 11 indexes
-7. **Git/SSH Setup** - ED25519 keys, GitHub auth
-8. **Docker Support** - Full containerization
-9. **Termux Sync** - Cross-device config backup
-10. **Documentation** - README, CHANGELOG, schema docs
-
----
-
-## Contributing
-
-```bash
-# Clone
-git clone git@github.com:tmdev012/ollama-local.git
-cd ollama-local
-
-# Make changes
-# ...
-
-# Push
-gitpush "Description of changes"
-```
-
----
-
-## License
-
-MIT
-
----
-
-## Credits
-
-- **Author:** tmdev012
-- **AI Assistant:** Claude Opus 4.6 (Anthropic)
-- **Models:** Meta Llama 3.2 (3B), Meta Llama 3.1 (8B)
-
----
-
-*Built with Claude Code CLI - Feb 2026 | Last updated: 2026-02-22*
+*Maintained by tmdev012. Last updated: 2026-03-11*
