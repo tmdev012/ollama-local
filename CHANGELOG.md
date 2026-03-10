@@ -83,7 +83,7 @@
   symlink inspection, checksum/diff, and real-time filesystem watch.
 
 ### Developer Experience
-- Architecture diagrams synced to v3.2.2: `bdpm-swimlanes.svg`, `gazette-architecture.svg`,
+- Architecture diagrams synced to v3.2.2: `bdpm-swimlanes.svg`, `kanban-architecture.svg`,
   `process-map-animated.svg`.
 - README version badge and alias reference section updated.
 
