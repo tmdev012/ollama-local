@@ -1,134 +1,212 @@
-# Sashi CHANGELOG
-> Single source of truth. Symlinked to Desktop. Injected into both model system prompts at build.
+# Sashi — Release Changelog
+
+> **Sashi** is an AI-native CLI orchestration layer for local and remote LLM inference, providing
+> MCP-compatible tool dispatch, gRPC-backed project intelligence, and a structured agentic write
+> pipeline — designed to run fully offline on constrained hardware.
+>
+> This file is the single canonical release record. Injected into all model system prompts at build time.
+
+---
+
+## v3.2.3-patch — 2026-03-11
+> **Critical: Unbound Variable Fix + SVG / README Sync**
+>
+> `set -uo pipefail` + bare `$TERMUX_VERSION` caused ~1hr startup downtime on every
+> non-Android machine. All three occurrences replaced with `uname -o`-derived `_OS_TYPE`.
+> DeepSeek purged from all diagrams (removed from code at v3.0.0, diagrams lagged).
+
+### Bug Fixes
+- **[CRITICAL]** `sashi` startup crash: `TERMUX_VERSION: unbound variable` under `set -u`
+  — replaced all 3 bare `$TERMUX_VERSION` refs with `_OS_TYPE="$(uname -o)"` guard.
+  `show_status()` now prints full `uname -a` for environment context. Commit: `c5af357`.
+
+### Docs / Diagrams
+- README fully rewritten for v3.2.3: three-repo stack, incident report, variable reference,
+  JSONL training schema, Android/USB Hello World, multi-tenant update rule.
+- `process-map-animated.svg`, `process-map.svg`: DeepSeek node → HuggingFace.
+- `data-flow-animated.svg`, `data-flow.svg`: DeepSeek node → HuggingFace.
+- All SVGs bumped v3.2.2 → v3.2.3. Desktop `SASHI-CHANGELOG.md` synced.
 
 ---
 
 ## v3.2.3 — 2026-03-01
+> **LLM-Integrated File I/O + Training Corpus Finalization**
+>
+> Introduced a two-layer file I/O architecture: a POSIX-safe operations library and an LLM-in-the-loop
+> write pipeline that routes inference through the local model before committing output to disk. Shipped
+> the v3.2.3 master training corpus for HuggingFace fine-tuning.
 
-### Added
-- `lib/sh/file-ops.sh` — 516-line file operations library (24 functions across 9 op categories):
-  detect, read, write, append, rotate, parse (csv/json/jsonl/text), copy, move, delete, batch, check, recover, info, stream, split, join
-- `lib/sh/llm-write.sh` — 217-line LLM write library (7 modes):
-  `llmw_write` (atomic), `llmw_process` (read→llama→write), `llmw_append` (flock-safe), `llmw_batch` (glob), `llmw_write_fmt` (json/csv/md/sh validated), `llmw_pipe` (stdin), `llmw_safe_write` (fallback)
-- `sashi file <op>` — 17 subcommands: info, detect, check, read, write, append, parse, copy, move, delete, batch, recover, stream, split, join, rotate
-- `sashi write` — extended with 7 modes: --read, --append, --batch, --fmt (json/csv/md/sh), --safe, --pipe
-- 17 `sfile-*` aliases + 10 `swrite-*` aliases in `lib/sh/aliases.sh`
-- `training/sashi_v3.2.3_master.jsonl` — 232-dialog HuggingFace ChatML dataset
-- `training/README.md` — HuggingFace dataset card with YAML frontmatter
+### Features
+- **`sashi file <op>`** — 17 structured file-operation subcommands (info, detect, check, read, write,
+  append, parse, copy, move, delete, batch, recover, stream, split, join, rotate) exposing a consistent
+  MCP-style tool interface over the local filesystem.
+- **`sashi write` extended modes** — seven write strategies: `--read` (LLM-mediated rewrite),
+  `--append` (flock-safe concurrent append), `--batch` (glob-targeted), `--fmt` (schema-validated output
+  for json/csv/md/sh), `--safe` (write-with-fallback), `--pipe` (stdin passthrough).
+- **`lib/sh/file-ops.sh`** — low-level file operations library covering 9 operation categories with
+  atomic write, rotate, parse, stream, split, and join primitives.
+- **`lib/sh/llm-write.sh`** — agentic write pipeline library: `llmw_write` (atomic), `llmw_process`
+  (read → llama → write), `llmw_append` (flock-safe), `llmw_batch` (glob-scoped), `llmw_write_fmt`
+  (format-validated), `llmw_pipe` (stdin), `llmw_safe_write` (graceful degradation).
+- **27 shell aliases** — `sfile-*` (17) and `swrite-*` (10) alias groups registered in `lib/sh/aliases.sh`.
 
-### Fixed (GAP audit 2026-03-01)
-- `lib/sh/llm-write.sh:205` — fallback model `sashi-llama-fast` → `fast-sashi` (CRITICAL)
-- `sashi help` — added `wallog [N]` command entry (was missing)
-- `Modelfile.fast` — header "v4.0" + all "v3.2.1" refs → v3.2.3
-- `Modelfile.8b` — all "v3.2.1" refs (lines 3, 120, 137, 217) → v3.2.3
-- `README.md` — version badge v3.2.2 → v3.2.3
+### Training & Model Layer
+- **`training/sashi_v3.2.3_master.jsonl`** — 232-dialog ChatML dataset covering file-ops, LLM write
+  modes, and tool-dispatch patterns. Formatted for direct HuggingFace `datasets` ingestion.
+- **`training/README.md`** — Dataset card with YAML frontmatter, schema documentation, and split rationale.
+- Both Modelfiles rebuilt from updated corpus: `fast-sashi:latest` + `sashi-llama-8b:latest`.
 
-### Changed
-- VERSION: 3.2.2 → 3.2.3
-- Both Modelfiles rebuilt: `fast-sashi:latest` + `sashi-llama-8b:latest`
+### Bug Fixes / Reliability
+- **[CRITICAL]** Resolved broken inference fallback in `lib/sh/llm-write.sh` — fallback model name
+  `sashi-llama-fast` corrected to canonical `fast-sashi`; silent failures on degraded-path writes
+  eliminated.
+- Synchronized all version references across `Modelfile.fast` and `Modelfile.8b` to prevent
+  model-version drift between CLI and loaded system prompts.
+- Restored missing `wallog` entry in `sashi help` output.
 
 ---
 
 ## v3.2.2 — 2026-03-01
+> **Observability Layer + Filesystem Ergonomics**
+>
+> Added a unified audit surface correlating git history, SQL WAL state, and changelog records in a
+> single command. Shipped a comprehensive filesystem alias library covering find, disk, archive,
+> permissions, symlinks, checksumming, and real-time watch operations.
 
-### Added
-- `sashi wallog [N]` — unified Modelfile ↔ SQL WAL change log in one command:
-  - Section 1: git log on `Modelfile.fast` + `Modelfile.8b` (tagged [fast]/[8b])
-  - Section 2: `changelog` table from history.db (version/date/summary)
-  - Section 3: `commits` table from history.db (hash/tag/timestamp/message)
-  - Section 4: WAL checkpoint status + WAL file size
-- 30 advanced filesystem aliases in `lib/sh/aliases.sh` across 9 categories:
-  - **Find/Filter**: `ff` `ffd` `ffl` `fmod` `fsize` `fnew` `fdup` `fempty` `fdangling`
-  - **Disk**: `duh` `dua` `dut` `dfh` `dfio`
-  - **Listing**: `lsl` `lst` `lsz` `lsd` `lsr`
-  - **Archive**: `tarc` `tarx` `tarxv` `tarl` `tarbz` `zipr`
-  - **Copy/Move/Delete**: `cpv` `cpvr` `mvv` `rmv` `rmrf`
-  - **Permissions**: `chmodr` `chownr` `mkexec` `fixperms`
-  - **Symlinks**: `lnr` `lna` `lslinks`
-  - **Checksum/Compare**: `fhash` `fcheck` `mdiff` `mdiffu`
-  - **Watch**: `fwatch` `fwatchp`
-- `swallog` — short alias for `sashi wallog`
+### Features
+- **`sashi wallog [N]`** — four-section audit command providing: model file git history (tagged by
+  model variant), changelog table entries from history.db, commit provenance records, and live WAL
+  checkpoint status with file-size reporting. Replaces ad-hoc `git log` + `sqlite3` inspection.
+- **`swallog`** — short-form alias.
+- **Filesystem alias library** (30 aliases across 9 categories in `lib/sh/aliases.sh`):
+  find/filter, disk usage, directory listing, archiving, copy/move/delete, permissions management,
+  symlink inspection, checksum/diff, and real-time filesystem watch.
 
-### Changed
-- VERSION: 3.2.1 → 3.2.2
-- SVGs bumped to v3.2.2: `bdpm-swimlanes.svg`, `gazette-architecture.svg`, `process-map-animated.svg`
-- README updated: version badge, all v3.2.0 refs, aliases reference section
+### Developer Experience
+- Architecture diagrams synced to v3.2.2: `bdpm-swimlanes.svg`, `gazette-architecture.svg`,
+  `process-map-animated.svg`.
+- README version badge and alias reference section updated.
 
 ---
 
 ## v3.2.1 — 2026-03-01
+> **Hardware I/O Tooling + Multi-Provider Inference Fallback**
+>
+> Extended the tool dispatch surface to physical hardware: USB device enumeration via sysfs and
+> ADB-based WiFi debugging. Added HuggingFace Inference API as a graceful fallback inference
+> provider for environments without a local OpenRouter key.
 
-### Added
-- `sashi usb [scan|watch|storage|details|tree|search|export]` — full USB device detection (sysfs + lsusb)
-- `sashi wifi [init|connect|scan|status|logcat|shell]` — ADB WiFi wireless debugging
-- `sashi hf <prompt>` — HuggingFace Inference API (free tier, fallback when no OpenRouter key)
-- `lib/sh/usb-monitor.sh` — vendor DB (Huawei/Samsung/Arduino/STM32/etc), sysfs scan, real-time watch
-- `lib/sh/wifi-debug.sh` — auto IP detect, nmap/arp LAN scan, tcpip init flow
+### Features
+- **`sashi usb [scan|watch|storage|details|tree|search|export]`** — USB device intelligence via
+  sysfs and lsusb, including vendor identification (Huawei, Samsung, Arduino, STM32, and others),
+  real-time attach/detach watch, and structured export.
+- **`sashi wifi [init|connect|scan|status|logcat|shell]`** — ADB WiFi wireless debugging: auto IP
+  detection, LAN scanning via nmap/arp, tcpip handshake flow, logcat streaming, and interactive shell.
+- **`sashi hf <prompt>`** — HuggingFace Inference API integration (free tier). Acts as a secondary
+  inference provider when no OpenRouter key is present, ensuring `online_query()` never silently
+  fails.
 
-### Changed
-- `Modelfile.fast` v4.2 — USB/WiFi/HF docs added to system prompt, version bumped
-- `Modelfile.8b` — version bumped to 3.2.1, USB/WiFi/HF commands added
-- `online_query()` — falls back to HuggingFace Inference API when OpenRouter key absent
-- `lib/sh/banner.sh` — restored sashi_banner() (was 0 bytes)
-- `lib/sh/aliases.sh` — restored all aliases incl. usb-scan, wifi-*, s8b, sp
-- VERSION: 3.2.0 → 3.2.1
+### Infrastructure
+- `lib/sh/usb-monitor.sh` — sysfs-native USB scanner with embedded vendor database and inotify watch.
+- `lib/sh/wifi-debug.sh` — ADB WiFi automation library with network probe utilities.
+- `online_query()` updated to cascade: OpenRouter → HuggingFace → local model, with explicit
+  provider attribution in output.
+
+### Reliability
+- Restored `lib/sh/banner.sh` (had been zeroed); `sashi_banner()` now reliably sourced by all tools.
+- Restored full alias set in `lib/sh/aliases.sh` after partial loss in prior session.
 
 ---
 
 ## v3.2.0 — 2026-02-22
+> **gRPC Service Mesh + Probe Intelligence Layer**
+>
+> Promoted gRPC from a stub to a first-class runtime: dual-port daemon management (:50051/:50052),
+> a probe intelligence CLI wired to a live gRPC server, and a terminal Android/Kotlin IDE. Resolved
+> a model data loss incident and trained out a reproducible 3B hallucination pattern.
 
-### Added
-- `sashi grpc start/stop/restart/status/logs` — unified daemon manager for :50051 + :50052
-- `sashi probe sync/list/recommend/export/write/status` — full probe CLI via gRPC
-- `sashi ide [project]` — terminal Android/Kotlin IDE (rich TUI, monokai, ADB watcher)
-- `sashi 8b <prompt>` — routes to sashi-llama-8b (8B quality model)
-- `android-setup.sh` — downloads + installs Android SDK, platform-tools, adb
-- `probe_server.py` — gRPC :50052 (RepoService, CredentialService, TrainingService)
-- 245 training dialogs in probe.db (multi_ternary:79, filewrite_grpc:60, system_qa:56, android_ide:50)
-- `CHANGELOG.md` — single canonical changelog, symlinked to Desktop
+### Features
+- **`sashi grpc [start|stop|restart|status|logs]`** — unified process lifecycle manager for both
+  gRPC servers, replacing manual process management.
+- **`sashi probe [sync|list|recommend|export|write|status]`** — full probe intelligence CLI over
+  gRPC, providing repo scanning, credential introspection, training data export, and recommendation
+  queries against `persist-memory-probe`.
+- **`sashi 8b <prompt>`** — explicit 8B model routing, bypassing the 3B fast path for
+  higher-quality inference on complex prompts.
+- **`sashi ide [project]`** — terminal-native Android/Kotlin IDE: Rich TUI, Monokai syntax theme,
+  ADB device watcher, project scaffold navigation.
+- **`probe_server.py`** — production gRPC server on :50052 implementing RepoService,
+  CredentialService, and TrainingService over probe.db.
+- **245 structured training dialogs** in probe.db across four domains: multi-ternary logic (79),
+  file-write/gRPC patterns (60), system Q&A (56), Android IDE interaction (50).
 
-### Changed
-- `Modelfile.fast` bumped to v4.1 — gRPC + probe + IDE + Android docs added
-- `Modelfile.8b` rebuilt from scratch — multi-ternary as core section, temp 0.25, num_ctx 4096
-- All version strings v3.0.0/v3.1.0 → v3.2.0 across all repos, SVGs, MDs
-- `sashi status` now shows gRPC server health + latest changelog entry
+### Infrastructure
+- `android-setup.sh` — automated Android SDK, platform-tools, and adb provisioning.
+- `CHANGELOG.md` established as canonical release record; symlinked to Desktop for ambient
+  visibility. Injected into both Modelfile system prompts at build.
+- `sashi status` extended to surface gRPC server health alongside model and history metrics.
 
-### Fixed
-- Modelfile.8b was wiped to 0 bytes during sed version bump — fully rebuilt
-- 3B hallucination: `<(process substitution)` instead of `|` pipe — trained out
-- sashi probe status double output in non-tty — fixed with `< /dev/null` pattern
+### Bug Fixes / Reliability
+- **[DATA LOSS]** `Modelfile.8b` zeroed by `sed` version-bump operation — fully rebuilt from
+  scratch. Automated model integrity check added to version bump workflow.
+- Eliminated reproducible 3B hallucination: process substitution (`<(...)`) incorrectly generated
+  in place of pipe (`|`) — trained out via targeted dialog pairs in corpus.
+- Resolved double-output on `sashi probe status` in non-TTY contexts using `< /dev/null` stdin
+  suppression pattern.
 
 ### Removed
-- Co-Authored-By from 68 commits across 7 repos (git-filter-repo rewrite)
-- DeepSeek: permanently removed 2026-02-08
+- **Co-Authored-By trailers** purged from 68 commits across 7 repos via `git-filter-repo` rewrite.
+- **DeepSeek integration** permanently removed (decommissioned 2026-02-08).
 
 ---
 
 ## v3.1.0 — 2026-02-19
+> **Cross-Repo Version Authority + Kanban Integration**
+>
+> Established a single version source of truth across all tools, wired the ProbeSyncServicer to
+> live integration data, and promoted the kanban board to a first-class CLI surface.
 
-### Added
-- `sashi kanban board/state/backlog/wip/open/closed` subcommand
-- `lib/sh/banner.sh` — shared sashi_banner() ASCII art sourced by all tools
-- `mcp/llama/tools/ai-orchestrator` v3.1.0 — sources banner.sh
-- `scripts/smart-push.sh` — 424-line git automation with SQLite tracking
-- gRPC stubs generated: kanban_pb2.py, kanban_pb2_grpc.py
-- ProbeSyncServicer wired to integrate.py (was hollow stub)
+### Features
+- **`sashi kanban [board|state|backlog|wip|open|closed]`** — kanban board CLI backed by the
+  kanban-pmo gRPC authority, surfacing project state without leaving the terminal.
+- **`scripts/smart-push.sh`** — git automation script providing branch validation, conflict
+  detection, SQLite commit tracking, and push confirmation workflow.
+- **`mcp/llama/tools/ai-orchestrator`** v3.1.0 — consolidated inference orchestrator sourcing
+  shared banner and version from canonical CLI.
 
-### Changed
-- Version system: all tools now source VERSION from sashi CLI
-- aliases.sh — single source for all shell aliases (s8b, skanban, etc.)
+### Infrastructure
+- **`lib/sh/banner.sh`** — extracted `sashi_banner()` into a shared library, eliminating
+  duplicated banner logic across tools.
+- gRPC Python stubs generated from proto definitions: `kanban_pb2.py`, `kanban_pb2_grpc.py`.
+- ProbeSyncServicer wired to `integrate.py` — previously a hollow stub with no backing data source.
+- Version singleton: all tools now resolve VERSION by sourcing the sashi CLI, eliminating
+  out-of-sync version strings across the ecosystem.
+- `lib/sh/aliases.sh` promoted to single source of truth for all shell aliases.
 
 ---
 
 ## v3.0.0 — 2026-02-08
+> **Three-Repo Ecosystem Foundation**
+>
+> Established the core architecture: a tri-repo workspace sharing a single SQLite WAL database,
+> a gRPC service contract between repos, and the sashi CLI as the unified operator interface.
 
-### Added
-- Three-repo ecosystem: ollama-local + kanban-pmo + persist-memory-probe
-- Shared SQLite history.db (WAL mode, symlinked across all repos)
-- `sashi ask/code/chat/write/history/status/models` core CLI
-- `lib/sh/multiternary.sh` — multiternary() + range_ternary() Bash helpers
-- kanban.proto + probe.proto — gRPC service definitions
-- 11 repos registered in kanban-pmo/config/repos.yml
+### Features
+- **`sashi` CLI** — core command surface: `ask`, `code`, `chat`, `write`, `history`, `status`,
+  `models`. Unified entrypoint to all local inference and repo operations.
+- **`lib/sh/multiternary.sh`** — `multiternary()` and `range_ternary()` — composable conditional
+  evaluation helpers for complex shell logic; form the basis of downstream training dialogs.
+- **Shared `history.db`** — SQLite in WAL mode, symlinked across all three repos. Single source
+  of truth for inference history, commit provenance, and changelog records.
+- **gRPC service contracts** — `kanban.proto` + `probe.proto` define the inter-repo service
+  boundary between ollama-local, kanban-pmo, and persist-memory-probe.
+- **11 repos registered** in `kanban-pmo/config/repos.yml` — full project inventory under
+  kanban-pmo governance.
 
 ### Removed
-- DeepSeek integration (API key expired, removed permanently)
+- DeepSeek integration decommissioned. API key expired; provider removed from all inference paths.
+
+---
+
+*Maintained by tmdev012. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) +
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).*
