@@ -1,0 +1,191 @@
+{
+  "_meta": {
+    "version": "3.2.3",
+    "protocol": "MCP/1.0",
+    "description": "Sashi MCP tool manifest — real tool definitions, not stubs",
+    "server": "mcp/server.py",
+    "transport": "stdio/json-rpc"
+  },
+  "tools": [
+    {
+      "name": "sashi_ask",
+      "description": "Query the local LLM (llama3.2 via ollama). Local-first, offline-capable. Returns plain-text response.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "The question or task to send to the local model"
+          },
+          "model": {
+            "type": "string",
+            "description": "Override the model. Defaults to LOCAL_MODEL env var (llama3.2).",
+            "default": "llama3.2"
+          }
+        },
+        "required": ["prompt"]
+      }
+    },
+    {
+      "name": "sashi_code",
+      "description": "Code generation via local LLM. Prepends a coding-assistant system context. Optimised for concise, runnable output.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Coding task or question"
+          }
+        },
+        "required": ["prompt"]
+      }
+    },
+    {
+      "name": "sashi_file_read",
+      "description": "Read a file from the local filesystem. Size-aware (streams large files), binary-safe (refuses binary unless mode=binary), encoding-aware.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Absolute or relative path to the file"
+          },
+          "encoding": {
+            "type": "string",
+            "description": "Expected encoding. Default: utf-8",
+            "default": "utf-8"
+          },
+          "head_n": {
+            "type": "integer",
+            "description": "If > 0, return only the first N lines",
+            "default": 0
+          }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "sashi_file_write",
+      "description": "Atomically write content to a file (tmp→mv pattern). Optional backup of existing file before overwrite.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Destination file path"
+          },
+          "content": {
+            "type": "string",
+            "description": "Content to write"
+          },
+          "backup": {
+            "type": "boolean",
+            "description": "Create a timestamped .bak before overwriting. Default: false",
+            "default": false
+          }
+        },
+        "required": ["path", "content"]
+      }
+    },
+    {
+      "name": "sashi_file_append",
+      "description": "Append content to a file with flock-based concurrency safety. Enforces a max size limit before rejecting.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Target file path"
+          },
+          "content": {
+            "type": "string",
+            "description": "Content to append"
+          },
+          "max_mb": {
+            "type": "integer",
+            "description": "Reject append if file exceeds this size (MB). Default: 100",
+            "default": 100
+          }
+        },
+        "required": ["path", "content"]
+      }
+    },
+    {
+      "name": "sashi_llm_write",
+      "description": "Run the local LLM against a prompt and write the output atomically to a file. The core agentic write primitive.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "outfile": {
+            "type": "string",
+            "description": "Destination file path for LLM output"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Prompt to send to the local model"
+          }
+        },
+        "required": ["outfile", "prompt"]
+      }
+    },
+    {
+      "name": "sashi_llm_process",
+      "description": "Read an input file, pass its content + a prompt to the local LLM, write output to a new file. The read→infer→write pipeline.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "infile": {
+            "type": "string",
+            "description": "Source file to read"
+          },
+          "outfile": {
+            "type": "string",
+            "description": "Destination file for LLM output"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Task instruction applied to the file content"
+          }
+        },
+        "required": ["infile", "outfile", "prompt"]
+      }
+    },
+    {
+      "name": "sashi_history",
+      "description": "Return the last N query records from the shared SQLite history database.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "description": "Number of records to return. Default: 20",
+            "default": 20
+          }
+        }
+      }
+    },
+    {
+      "name": "sashi_status",
+      "description": "Return system status: ollama health, model list, gRPC server states, query statistics.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "sashi_kanban",
+      "description": "Query the kanban board. Returns column counts (board) or card lists per column.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": ["board", "backlog", "open", "wip", "closed", "state"],
+            "description": "Which view to return. Default: board",
+            "default": "board"
+          }
+        }
+      }
+    }
+  ]
+}

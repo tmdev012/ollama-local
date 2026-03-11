@@ -18,7 +18,17 @@ _lw_infer() {
     local model="${LLM_MODEL:-${MODEL:-llama3.2}}"
     local prompt="$1"
     if [[ -z "$prompt" ]]; then _lw_err "Empty prompt"; return 1; fi
-    ollama run "$model" "$prompt" 2>/dev/null
+    local output exit_code
+    output=$(timeout 60 ollama run "$model" "$prompt" 2>&1)
+    exit_code=$?
+    if [[ $exit_code -eq 124 ]]; then
+        _lw_err "Inference timed out after 60s (model: $model)"
+        return 1
+    elif [[ $exit_code -ne 0 ]]; then
+        _lw_err "Inference failed (exit $exit_code): $output"
+        return 1
+    fi
+    echo "$output"
 }
 
 # ── 1. SIMPLE WRITE — prompt → file (replaces old sashi write) ────────
