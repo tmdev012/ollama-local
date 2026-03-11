@@ -177,7 +177,7 @@ wifi_statusline() {
     [[ ! -x "$ADB_BIN" ]] && echo "WiFi:n/a" && return
 
     local count
-    count=$("$ADB_BIN" devices 2>/dev/null | tail -n +2 | grep -c "^[0-9].*device$" || echo 0)
+    count=$("$ADB_BIN" devices 2>/dev/null | tail -n +2 | grep -c "^[0-9].*device$" 2>/dev/null); count=${count:-0}
 
     if [[ "$count" -gt 0 ]]; then
         local addr
