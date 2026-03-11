@@ -263,7 +263,7 @@ else
 # ─────────────────────────────────────────────────────────
 
 # ── Core ──
-LOCAL_MODEL=llama3.2
+LOCAL_MODEL=fast-sashi
 OLLAMA_HOST=http://localhost:11434
 OFFLINE_MODE=true
 
