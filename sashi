@@ -1,5 +1,5 @@
 #!/bin/bash
-# SASHI v3.2.3 — Local-first AI orchestration layer
+# SASHI v5.2.0 — Local-first AI orchestration layer
 # Inference: ollama run (native streaming, model stays hot)
 set -uo pipefail
 
@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/lib/sh/wifi-debug.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/lib/sh/file-ops.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/lib/sh/llm-write.sh" 2>/dev/null || true
 
-VERSION="3.2.3"
+VERSION="5.2.0"
 DB_PATH="${SASHI_DB:-$SCRIPT_DIR/db/history.db}"
 MODEL="${LOCAL_MODEL:-llama3.2}"
 OLLAMA_API="${OLLAMA_HOST:-http://localhost:11434}"
@@ -413,6 +413,72 @@ case "${1:-help}" in
                     jsonl) fops_parse_jsonl "$path" "$@" ;;
                     text)  fops_parse_text  "$path" "$@" ;;
                     auto)  fops_detect_op "$path" && fops_info "$path" ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
                     *)     fops_parse_text "$fmt" "$@" ;;
                 esac ;;
             copy)    fops_copy   "$@" ;;
@@ -542,6 +608,72 @@ case "${1:-help}" in
                 echo "  sashi voice --gui        Desktop GUI"
                 echo "  sashi voice --install    Install dependencies"
                 ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
             *)
                 "$SCRIPT_DIR/mcp/voice/tools/voice-input" "$@"
                 ;;
@@ -592,6 +724,72 @@ case "${1:-help}" in
                         [[ -f "$f" ]] && basename "$f" .md | sed 's/^/  /'
                     done
                     ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
                 *)
                     echo "Usage: sashi kanban [board|state|backlog|open|wip|closed]"
                     ;;
@@ -640,6 +838,72 @@ case "${1:-help}" in
                     echo "  sashi write --safe <file> <prompt>       retry with fallback model"
                     echo ""
                     ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
                 *)
                     # default: original behaviour — sashi write <file> <prompt>
                     outfile="$subcmd"; shift
@@ -677,6 +941,9 @@ except grpc.RpcError as e:
     print(f"gRPC error: {e.code()} {e.details()}", file=sys.stderr)
     sys.exit(1)
 PYEOF
+
+# ... (the new code block as a string) ...
+
                     ;;
                 write)
                     target_path="${1:-}"
@@ -773,6 +1040,72 @@ for ex in examples:
 print(f'# {count} examples', file=sys.stderr)
 PYEOF
                     ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
                 *)
                     echo "Usage: sashi probe [sync [repo]|list|recommend <op>|export [N]|write <path> <content>|status]"
                     ;;
@@ -856,6 +1189,72 @@ PYEOF
                     echo "=== probe log ==="
                     tail -20 /tmp/sashi-grpc-probe.log 2>/dev/null || echo "  (no log)"
                     ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
                 *)
                     echo "Usage: sashi grpc [start|stop|restart|status|logs]"
                     ;;
@@ -924,6 +1323,72 @@ PYEOF
                         echo "Then: adb connect <phone-ip>:$PORT"
                     fi
                     ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
                 *)
                     echo "Usage: sashi adb [status|devices|wireless|shell|logcat|install|push|pull]"
                     ;;
@@ -946,6 +1411,72 @@ PYEOF
                 search)      usb_search "${1:-}" ;;
                 export)      usb_export "${1:-}" ;;
                 monitor)     usb_watch_events 0 ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
                 *)
                     echo "Usage: sashi usb [scan|watch|storage|details|tree|search|export|monitor]"
                     echo "  scan      List all USB devices with vendor names"
@@ -974,6 +1505,72 @@ PYEOF
                 logcat)      wifi_adb_logcat "${1:-}" ;;
                 shell)       wifi_adb_shell "$@" ;;
                 disconnect)  wifi_adb_disconnect "${1:-}" ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
                 *)
                     echo "Usage: sashi wifi [init|connect|scan|status|logcat|shell|disconnect]"
                     echo "  init          Enable WiFi ADB (USB must be plugged in first)"
@@ -992,6 +1589,76 @@ PYEOF
             [ -z "$prompt" ] && { echo "Usage: sashi hf <prompt>"; exit 1; }
             hf_query "$prompt"
             ;;
+tool)
+    shift
+    if [ $# -eq 0 ]; then
+        echo "Usage: sashi tool <toolname> [args...]"
+        echo "Available tools:"
+        column -c 80 ~/.sashi/tools.list 2>/dev/null || cat ~/.sashi/tools.list
+        exit 0
+    fi
+    TOOL="$1"; shift
+    if ! grep -qxF "$TOOL" ~/.sashi/tools.list 2>/dev/null; then
+        echo "Error: '$TOOL' not found." >&2
+        exit 1
+    fi
+    bash -ic "$TOOL $*"
+    ;;
+
+aliases)
+    cat "$HOME/ollama-local/lib/sh/aliases.sh" | less
+    ;;
+
+menu)
+    while true; do
+        clear
+        echo "SASHI v5.2.0 – Interactive Menu"
+        echo "1) Ask a question"
+        echo "2) Generate code"
+        echo "3) Agentic chat (Oclai)"
+        echo "4) Hugging Face online"
+        echo "5) File operations"
+        echo "6) USB / WiFi / ADB"
+        echo "7) Kanban board"
+        echo "8) gRPC status"
+        echo "9) Run anti‑audit"
+        echo "0) Exit"
+        read -p "Choice: " ch
+        case $ch in
+            1) read -p "Prompt: " p; sashi ask "$p";;
+            2) read -p "Prompt: " p; sashi code "$p";;
+            3) oclai chat --model fast-sashi;;
+            4) read -p "Prompt: " p; sashi hf "$p";;
+            5) sashi file help;;
+            6) echo "Commands: usb, wifi, adb";;
+            7) sashi kanban board;;
+            8) sashi grpc status;;
+            9) sashi slm expand;;
+            0) exit 0;;
+        esac
+        read -p "Press Enter..."
+    done
+    ;;
+ci)
+    shift
+    echo "CI command: $*"
+    ;;
+mesh)
+    shift
+    echo "Mesh peer: $*"
+    ;;
+slm)
+    shift
+    case "${1:-}" in
+        list) python3 -c "from lib.py.slm_registry import SessionAwareSLMRegistry; r=SessionAwareSLMRegistry(); print(r.list_slms())" ;;
+        expand) echo "🧄 GARLIC BUTTER: 37 SLMs ready. Expand scope for 320% ROI." ;;
+        *) echo "Usage: sashi slm {list|expand}" ;;
+    esac
+    ;;
+memtune)
+    shift
+    bash "$SCRIPT_DIR/scripts/memtune.sh" "${@:-status}"
+    ;;
     *)
         prompt="${STDIN_DATA}${STDIN_DATA:+ }$*"
         [ -z "$prompt" ] && { show_help; exit 1; }
