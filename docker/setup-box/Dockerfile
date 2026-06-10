@@ -15,7 +15,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     ANDROID_SDK_ROOT=/opt/android/sdk \
     IOS_HOME=/opt/ios \
     OLLAMA_HOST=http://ollama:11434 \
-    PATH="/usr/lib/jvm/java-17-openjdk-amd64/bin:/opt/android/sdk/cmdline-tools/latest/bin:/opt/android/sdk/platform-tools:/opt/android/sdk/build-tools/34.0.0:/root/.local/bin:/usr/local/bin:$PATH"
+    PATH="/usr/lib/jvm/java-17-openjdk-amd64/bin:/opt/android/sdk/cmdline-tools/latest/bin:/opt/android/sdk/platform-tools:/opt/android/sdk/build-tools/35.2.0:/root/.local/bin:/usr/local/bin:$PATH"
 
 # ── Base tools ───────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -35,7 +35,7 @@ RUN mkdir -p $ANDROID_HOME/cmdline-tools && \
     mv /tmp/android-cmd/cmdline-tools $ANDROID_HOME/cmdline-tools/latest && \
     rm -f /tmp/cmdline-tools.zip && \
     yes | sdkmanager --licenses > /dev/null 2>&1 || true && \
-    sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+    sdkmanager "platform-tools" "platforms;android-34" "build-tools;35.2.0"
 
 # ── sashi CLI (copy from repo) ────────────────────────────────────
 COPY ../../sashi /usr/local/bin/sashi

@@ -36,8 +36,8 @@ yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
 echo "▶ Installing platform-tools (adb)..."
 "$SDKMANAGER" "platform-tools"
 
-echo "▶ Installing build-tools 34.0.0..."
-"$SDKMANAGER" "build-tools;34.0.0"
+echo "▶ Installing build-tools 35.2.0..."
+"$SDKMANAGER" "build-tools;35.2.0"
 
 echo "▶ Installing android-34 platform..."
 "$SDKMANAGER" "platforms;android-34"
