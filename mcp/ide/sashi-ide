@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
 """
-╔══════════════════════════════════════════════════════════════════╗
-║  Sashi Android Studio v2.0 — Terminal IDE for Android / Kotlin  ║
-║  File tree · Build · Deploy · AI assist · Git diff              ║
-║  No SDK/ADB required · Works without TTY                        ║
-╚══════════════════════════════════════════════════════════════════╝
+Sashi Android Studio v5.3.0 — Terminal IDE
+Frameworks: Kotlin/Gradle  ·  Flutter  ·  TypeScript / React Native
+Modes: interactive TUI  ·  headless (--build / --test / --deploy / --env)
+No mandatory input() calls — every operation drivable from CLI args.
 """
 
-import os, sys, subprocess, threading, time, shutil
+import os, sys, subprocess, shutil, re, json, argparse
 from pathlib import Path
+from enum import Enum
 
-try:
-    from dotenv import dotenv_values  # type: ignore
-    _env = dotenv_values(str(Path.home() / "ollama-local" / ".env"))
-except Exception:
-    _env = {}
-
-# ── Rich ──────────────────────────────────────────────────────────────────────
 try:
     from rich.console import Console
     from rich.table   import Table
@@ -25,7 +18,8 @@ try:
     from rich.text    import Text
     from rich         import box
 except ImportError:
-    subprocess.run([sys.executable, "-m", "pip", "install", "rich", "-q"])
+    subprocess.run([sys.executable, "-m", "pip", "install", "rich", "-q"],
+                   capture_output=True)
     from rich.console import Console
     from rich.table   import Table
     from rich.syntax  import Syntax
@@ -35,132 +29,264 @@ except ImportError:
 
 console = Console()
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def run(args, cwd=None, label=""):
-    if label:
-        console.print(f"[cyan]▶ {label}[/cyan]")
-    proc = subprocess.Popen(
-        args, cwd=str(cwd) if cwd else None,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-    )
-    for line in proc.stdout:
-        console.print(line.rstrip())
-    proc.wait()
-    ok = proc.returncode == 0
-    console.print(f"[{'green' if ok else 'red'}]{'✓ done' if ok else '✗ failed'} (exit {proc.returncode})[/{'green' if ok else 'red'}]")
-    return ok
+class FW(str, Enum):
+    KOTLIN  = "kotlin"
+    FLUTTER = "flutter"
+    RN      = "typescript"
+    UNKNOWN = "unknown"
 
-def adb_cmd():
-    """Return adb binary path — checks PATH then known install locations."""
-    found = shutil.which("adb") or shutil.which("adb.exe")
+# ── Framework detection ───────────────────────────────────────────────────────
+def detect_framework(root: Path) -> FW:
+    if (root / "pubspec.yaml").exists():
+        return FW.FLUTTER
+    if (root / "package.json").exists():
+        try:
+            pkg = json.loads((root / "package.json").read_text())
+            deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
+            if "react-native" in deps or "expo" in deps:
+                return FW.RN
+        except Exception:
+            pass
+    if (root / "gradlew").exists() or (root / "build.gradle").exists() or \
+       (root / "build.gradle.kts").exists():
+        return FW.KOTLIN
+    return FW.UNKNOWN
+
+# ── ADB helper ────────────────────────────────────────────────────────────────
+def adb_cmd() -> str | None:
+    found = shutil.which("adb")
     if found:
         return found
-    candidates = [
+    for c in [
         Path.home() / "Android/platform-tools/adb",
         Path("/usr/lib/android-sdk/platform-tools/adb"),
         Path("/opt/android-sdk/platform-tools/adb"),
-    ]
-    for c in candidates:
+    ]:
         if c.exists():
             return str(c)
     return None
 
+def adb_devices(adb: str) -> list[str]:
+    r = subprocess.run([adb, "devices"], capture_output=True, text=True)
+    return [l.split()[0] for l in r.stdout.splitlines()[1:]
+            if l.strip() and "device" in l and "offline" not in l]
+
+# ── Package / manifest helpers ────────────────────────────────────────────────
 def get_package(root: Path) -> str:
     manifest = root / "app/src/main/AndroidManifest.xml"
     try:
-        import re
         m = re.search(r'package="([^"]+)"', manifest.read_text())
         return m.group(1) if m else "com.example.app"
     except Exception:
         return "com.example.app"
 
+# ── Subprocess runner (streaming) ─────────────────────────────────────────────
+def run(args, cwd=None, label="", env=None) -> bool:
+    if label:
+        console.print(f"[cyan]▶ {label}[/cyan]")
+    merged_env = {**os.environ, **(env or {})}
+    proc = subprocess.Popen(
+        args, cwd=str(cwd) if cwd else None,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, env=merged_env,
+    )
+    for line in proc.stdout:
+        console.print(line.rstrip())
+    proc.wait()
+    ok = proc.returncode == 0
+    color = "green" if ok else "red"
+    mark  = "✓ done" if ok else "✗ failed"
+    console.print(f"[{color}]{mark} (exit {proc.returncode})[/{color}]")
+    return ok
+
 # ── File browser ──────────────────────────────────────────────────────────────
-def scan_files(root: Path):
-    exts = {".kt",".java",".xml",".kts",".toml",".gradle",".md",".json",".sh",".py",".yaml",".yml",".txt"}
-    skip = {"build",".gradle",".idea","__pycache__","node_modules",".git"}
+SKIP_DIRS = {"build", ".gradle", ".idea", "__pycache__", "node_modules",
+             ".git", ".dart_tool", ".flutter-plugins"}
+SHOW_EXTS = {".kt",".java",".xml",".kts",".toml",".gradle",".md",".json",
+             ".sh",".py",".yaml",".yml",".txt",".dart",".ts",".tsx",".js",
+             ".jsx",".swift",".html",".css"}
+
+def scan_files(root: Path) -> list[Path]:
     files = []
     for p in sorted(root.rglob("*")):
-        if any(s in p.parts for s in skip): continue
-        if p.is_file() and p.suffix in exts:
+        if any(s in p.parts for s in SKIP_DIRS):
+            continue
+        if p.is_file() and p.suffix in SHOW_EXTS:
             files.append(p)
     return files
 
-def show_files(root: Path, files):
-    tbl = Table(show_header=False, box=box.SIMPLE, padding=(0,1))
+def show_files(root: Path, files: list[Path]):
+    tbl = Table(show_header=False, box=box.SIMPLE, padding=(0, 1))
     tbl.add_column("n", style="dim", width=4)
     tbl.add_column("file")
+    color_map = {
+        ".kt": "bright_yellow", ".dart": "cyan", ".ts": "bright_blue",
+        ".tsx": "blue", ".xml": "bright_blue", ".kts": "orange1",
+        ".md": "green", ".toml": "magenta", ".json": "dim",
+    }
     for i, f in enumerate(files, 1):
-        rel = f.relative_to(root)
+        rel   = f.relative_to(root)
         depth = len(rel.parts) - 1
-        pad = "  " * depth
-        ext_color = {".kt":"bright_yellow",".xml":"bright_blue",".kts":"orange1",
-                     ".md":"green",".toml":"magenta"}.get(f.suffix,"white")
-        tbl.add_row(str(i), Text(f"{pad}{f.name}", style=ext_color))
-    console.print(Panel(tbl, title=f"[bold]FILES — {root.name}[/bold]", border_style="blue"))
+        pad   = "  " * depth
+        c     = color_map.get(f.suffix, "white")
+        tbl.add_row(str(i), Text(f"{pad}{f.name}", style=c))
+    console.print(Panel(tbl, title=f"[bold]FILES — {root.name}[/bold]",
+                        border_style="blue"))
 
 def view_file(f: Path, root: Path):
-    ext_map = {".kt":"kotlin",".java":"java",".xml":"xml",".kts":"kotlin",
-               ".toml":"toml",".md":"markdown",".sh":"bash",".py":"python",
-               ".json":"json",".yaml":"yaml",".yml":"yaml"}
+    ext_map = {
+        ".kt": "kotlin", ".java": "java", ".xml": "xml", ".kts": "kotlin",
+        ".dart": "dart", ".ts": "typescript", ".tsx": "typescript",
+        ".js": "javascript", ".jsx": "javascript", ".toml": "toml",
+        ".md": "markdown", ".sh": "bash", ".py": "python",
+        ".json": "json", ".yaml": "yaml", ".yml": "yaml",
+    }
     lang = ext_map.get(f.suffix, "text")
     try:
         syn = Syntax(f.read_text(errors="replace"), lang, theme="monokai",
                      line_numbers=True, word_wrap=False)
-        console.print(Panel(syn, title=f"[bold]{f.relative_to(root)}[/bold]", border_style="green"))
+        console.print(Panel(syn, title=f"[bold]{f.relative_to(root)}[/bold]",
+                            border_style="green"))
     except Exception as e:
         console.print(f"[red]Cannot read file: {e}[/red]")
 
-# ── Build / test ──────────────────────────────────────────────────────────────
-def do_build(root: Path):
-    run(["./gradlew", "assembleDebug", "--quiet"], cwd=root, label="gradle assembleDebug")
+# ── Build ─────────────────────────────────────────────────────────────────────
+def do_build(root: Path, fw: FW) -> bool:
+    if fw == FW.FLUTTER:
+        return run(["flutter", "build", "apk", "--debug"], cwd=root,
+                   label="flutter build apk --debug")
+    if fw == FW.RN:
+        mgr = "yarn" if (root / "yarn.lock").exists() else "npx"
+        if mgr == "yarn":
+            return run(["yarn", "android", "--mode", "debug"], cwd=root,
+                       label="yarn android")
+        return run(["npx", "react-native", "build-android",
+                    "--mode", "debug"], cwd=root,
+                   label="npx react-native build-android")
+    # Kotlin / Gradle (default)
+    gradlew = root / "gradlew"
+    cmd = [str(gradlew) if gradlew.exists() else "gradle",
+           "assembleDebug", "--quiet"]
+    return run(cmd, cwd=root, label="gradle assembleDebug")
 
-def do_test(root: Path):
-    run(["./gradlew", "test", "--quiet"], cwd=root, label="gradle test")
+# ── Test ──────────────────────────────────────────────────────────────────────
+def do_test(root: Path, fw: FW) -> bool:
+    if fw == FW.FLUTTER:
+        return run(["flutter", "test"], cwd=root, label="flutter test")
+    if fw == FW.RN:
+        mgr = "yarn" if (root / "yarn.lock").exists() else "npm"
+        return run([mgr, "test", "--watchAll=false"], cwd=root,
+                   label=f"{mgr} test")
+    gradlew = root / "gradlew"
+    cmd = [str(gradlew) if gradlew.exists() else "gradle", "test", "--quiet"]
+    return run(cmd, cwd=root, label="gradle test")
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
-def do_deploy(root: Path):
+def do_deploy(root: Path, fw: FW, target: str = "usb") -> bool:
+    """
+    target: "usb"  → deploy via USB ADB
+            "wifi" → prompt for IP (interactive only — pass wifi:<ip> for headless)
+            "wifi:<ip>[:<port>]" → WiFi headless deploy
+    """
     adb = adb_cmd()
+
+    if fw == FW.FLUTTER:
+        if not shutil.which("flutter"):
+            console.print("[red]flutter not in PATH[/red]"); return False
+        cmd = ["flutter", "install", "--debug"]
+        if target.startswith("wifi:"):
+            parts = target.split(":")
+            ip    = parts[1]
+            port  = parts[2] if len(parts) > 2 else "5555"
+            if adb:
+                subprocess.run([adb, "connect", f"{ip}:{port}"],
+                               capture_output=True)
+        return run(cmd, cwd=root, label="flutter install")
+
+    if fw == FW.RN:
+        mgr = "yarn" if (root / "yarn.lock").exists() else "npx"
+        if mgr == "yarn":
+            return run(["yarn", "android"], cwd=root, label="yarn android")
+        return run(["npx", "react-native", "run-android"], cwd=root,
+                   label="npx react-native run-android")
+
+    # Kotlin / Gradle
     if not adb:
-        console.print("[yellow]adb not found on PATH.[/yellow]")
-        console.print("[dim]Install with: sudo apt install adb[/dim]")
-        return
+        console.print("[red]adb not found. Install: sudo apt install adb[/red]")
+        console.print("[dim]Or: ~/Android/platform-tools/adb[/dim]")
+        return False
 
-    console.print("[dim]Connect options:[/dim]")
-    console.print("  [cyan]1[/cyan] USB (already connected)")
-    console.print("  [cyan]2[/cyan] Wireless (enter IP)")
-    choice = input("Choice [1/2]: ").strip()
-
-    if choice == "2":
-        ip = input("Phone IP address (e.g. 192.168.1.42): ").strip()
+    if target.startswith("wifi:"):
+        parts = target.split(":")
+        ip    = parts[1]
+        port  = parts[2] if len(parts) > 2 else "5555"
+        r = subprocess.run([adb, "connect", f"{ip}:{port}"],
+                           capture_output=True, text=True)
+        console.print(r.stdout.strip() or r.stderr.strip())
+    elif target == "wifi":
+        console.print("[yellow]Tip: pass wifi:<ip> for headless mode[/yellow]")
+        ip = input("Phone IP: ").strip()
         if not ip:
-            console.print("[red]No IP entered.[/red]"); return
-        port = input("Port [default 5555]: ").strip() or "5555"
-        console.print(f"[cyan]▶ adb connect {ip}:{port}[/cyan]")
-        r = subprocess.run([adb, "connect", f"{ip}:{port}"], capture_output=True, text=True)
+            console.print("[red]No IP[/red]"); return False
+        r = subprocess.run([adb, "connect", f"{ip}:5555"],
+                           capture_output=True, text=True)
         console.print(r.stdout.strip() or r.stderr.strip())
 
-    # Verify device is available
-    r = subprocess.run([adb, "devices"], capture_output=True, text=True)
-    lines = [l for l in r.stdout.splitlines()[1:] if l.strip() and "device" in l and "offline" not in l]
-    if not lines:
-        console.print("[red]No device connected.[/red]"); return
-    console.print(f"[green]● Device: {lines[0].split()[0]}[/green]")
+    devs = adb_devices(adb)
+    if not devs:
+        console.print("[red]No device connected via ADB.[/red]")
+        console.print("[dim]USB: enable USB debugging on phone[/dim]")
+        console.print("[dim]WiFi: sashi adb wireless → then sashi android-studio --deploy wifi:<ip>[/dim]")
+        return False
+    console.print(f"[green]● Device: {devs[0]}[/green]")
 
-    # Build then install
     apk = root / "app/build/outputs/apk/debug/app-debug.apk"
     if not apk.exists():
         console.print("[yellow]APK not found — building first...[/yellow]")
-        if not run(["./gradlew", "assembleDebug", "--quiet"], cwd=root, label="gradle assembleDebug"):
-            return
+        if not do_build(root, fw):
+            return False
 
-    pkg = get_package(root)
+    pkg      = get_package(root)
     if not run([adb, "install", "-r", str(apk)], label="adb install"):
-        return
+        return False
     activity = f"{pkg}/.MainActivity"
-    run([adb, "shell", "am", "start", "-n", activity], label=f"launch {pkg}")
+    return run([adb, "shell", "am", "start", "-n", activity],
+               label=f"launch {pkg}")
+
+# ── Env var management ────────────────────────────────────────────────────────
+ENV_FILE = Path.home() / "ollama-local/.env"
+
+def env_list():
+    if not ENV_FILE.exists():
+        console.print(f"[dim]No .env at {ENV_FILE}[/dim]"); return
+    for line in ENV_FILE.read_text().splitlines():
+        if line.strip() and not line.startswith("#"):
+            console.print(f"  [cyan]{line}[/cyan]")
+
+def env_set(key: str, value: str):
+    lines = ENV_FILE.read_text().splitlines() if ENV_FILE.exists() else []
+    found = False
+    for i, line in enumerate(lines):
+        if re.match(rf"^{re.escape(key)}=", line):
+            lines[i] = f"{key}={value}"
+            found = True
+            break
+    if not found:
+        lines.append(f"{key}={value}")
+    ENV_FILE.write_text("\n".join(lines) + "\n")
+    console.print(f"[green]✓ {key}={value} saved to {ENV_FILE}[/green]")
+
+def env_get(key: str):
+    if not ENV_FILE.exists():
+        console.print("[red]No .env found[/red]"); return
+    for line in ENV_FILE.read_text().splitlines():
+        m = re.match(rf"^{re.escape(key)}=(.*)", line)
+        if m:
+            console.print(f"{key}={m.group(1)}"); return
+    console.print(f"[yellow]{key} not set[/yellow]")
 
 # ── AI assist ─────────────────────────────────────────────────────────────────
-def do_ai(open_file: Path = None):
+def do_ai(open_file: Path = None, question: str = ""):
     ctx = ""
     if open_file:
         try:
@@ -168,7 +294,8 @@ def do_ai(open_file: Path = None):
             ctx = f"File: {open_file.name}\n```\n" + "\n".join(lines) + "\n```\n"
         except Exception:
             pass
-    question = input("AI question (Enter for auto-explain): ").strip()
+    if not question:
+        question = input("AI question (Enter = auto-explain): ").strip()
     prompt = ctx + (question or "Explain this code and suggest improvements.")
     console.print("[cyan]▶ Asking fast-sashi...[/cyan]")
     r = subprocess.run(["ollama", "run", "fast-sashi", prompt],
@@ -179,27 +306,31 @@ def do_ai(open_file: Path = None):
 # ── Git diff ──────────────────────────────────────────────────────────────────
 def do_diff(root: Path, open_file: Path = None):
     target = ["--", str(open_file)] if open_file else []
-    r  = subprocess.run(["git", "diff"]          + target, capture_output=True, text=True, cwd=str(root))
-    r2 = subprocess.run(["git", "diff", "--cached"] + target, capture_output=True, text=True, cwd=str(root))
-    diff = (r2.stdout + r.stdout).strip() or "(no changes)"
+    r  = subprocess.run(["git", "diff"]             + target,
+                        capture_output=True, text=True, cwd=str(root))
+    r2 = subprocess.run(["git", "diff", "--cached"] + target,
+                        capture_output=True, text=True, cwd=str(root))
+    diff  = (r2.stdout + r.stdout).strip() or "(no changes)"
     fname = open_file.name if open_file else "project"
-    syn = Syntax(diff, "diff", theme="monokai", line_numbers=True)
-    console.print(Panel(syn, title=f"[bold]DIFF — {fname}[/bold]", border_style="magenta"))
+    console.print(Panel(Syntax(diff, "diff", theme="monokai", line_numbers=True),
+                        title=f"[bold]DIFF — {fname}[/bold]",
+                        border_style="magenta"))
 
-# ── Project scaffold — Hello World ────────────────────────────────────────────
-def scaffold_hello_world(root: Path):
-    pkg = "com.tmdev012.helloandroid"
+# ── Scaffold — Hello World ────────────────────────────────────────────────────
+def scaffold_kotlin(root: Path):
+    pkg      = "com.tmdev012.helloandroid"
     pkg_path = pkg.replace(".", "/")
-    console.print(f"[yellow]▶ Scaffolding Hello World project at {root}[/yellow]")
+    console.print(f"[yellow]▶ Scaffolding Kotlin Hello World at {root}[/yellow]")
     root.mkdir(parents=True, exist_ok=True)
 
-    (root / "settings.gradle").write_text('rootProject.name = "hello-android"\ninclude ":app"\n')
+    (root / "settings.gradle").write_text(
+        'rootProject.name = "hello-android"\ninclude ":app"\n')
     (root / "build.gradle").write_text(
         "plugins {\n"
         "    id 'com.android.application' version '8.1.0' apply false\n"
         "    id 'org.jetbrains.kotlin.android' version '1.9.0' apply false\n"
-        "}\n"
-    )
+        "}\n")
+
     app_dir = root / "app"
     app_dir.mkdir(exist_ok=True)
     (app_dir / "build.gradle").write_text(f"""\
@@ -228,6 +359,7 @@ dependencies {{
     implementation 'androidx.appcompat:appcompat:1.6.1'
 }}
 """)
+
     main_dir = root / "app/src/main"
     main_dir.mkdir(parents=True, exist_ok=True)
     (main_dir / "AndroidManifest.xml").write_text(f"""\
@@ -244,6 +376,7 @@ dependencies {{
     </application>
 </manifest>
 """)
+
     kt_dir = root / f"app/src/main/kotlin/{pkg_path}"
     kt_dir.mkdir(parents=True, exist_ok=True)
     (kt_dir / "MainActivity.kt").write_text(f"""\
@@ -257,7 +390,7 @@ class MainActivity : AppCompatActivity() {{
     override fun onCreate(savedInstanceState: Bundle?) {{
         super.onCreate(savedInstanceState)
         val tv = TextView(this).apply {{
-            text = "Hello World\\n\\nBuilt with Sashi Android Studio v3.2.3"
+            text = "Hello World\\n\\nBuilt with Sashi Android Studio v5.3.0"
             textSize = 24f
             setPadding(64, 200, 64, 0)
         }}
@@ -265,11 +398,11 @@ class MainActivity : AppCompatActivity() {{
     }}
 }}
 """)
-    res_dir = root / "app/src/main/res/values"
-    res_dir.mkdir(parents=True, exist_ok=True)
-    (res_dir / "strings.xml").write_text(
-        '<resources><string name="app_name">Hello Android</string></resources>\n'
-    )
+
+    (root / "app/src/main/res/values").mkdir(parents=True, exist_ok=True)
+    (root / "app/src/main/res/values/strings.xml").write_text(
+        '<resources><string name="app_name">Hello Android</string></resources>\n')
+
     wrapper_dir = root / "gradle/wrapper"
     wrapper_dir.mkdir(parents=True, exist_ok=True)
     (wrapper_dir / "gradle-wrapper.properties").write_text(
@@ -277,8 +410,8 @@ class MainActivity : AppCompatActivity() {{
         "distributionPath=wrapper/dists\n"
         "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.4-bin.zip\n"
         "zipStoreBase=GRADLE_USER_HOME\n"
-        "zipStorePath=wrapper/dists\n"
-    )
+        "zipStorePath=wrapper/dists\n")
+
     gradlew = root / "gradlew"
     gradlew.write_text("""\
 #!/bin/sh
@@ -286,7 +419,6 @@ VER=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed 's/.*g
 GBIN=$(find "$HOME/.gradle/wrapper/dists" -name "gradle" -path "*${VER}*" -type f 2>/dev/null | head -1)
 if [ -z "$GBIN" ]; then
     echo "Downloading Gradle $VER..."
-    mkdir -p "$HOME/.gradle/wrapper/dists"
     curl -Lo /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-${VER}-bin.zip"
     unzip -q /tmp/gradle.zip -d "$HOME/.gradle/wrapper/dists/"
     GBIN=$(find "$HOME/.gradle/wrapper/dists" -name "gradle" -path "*${VER}*" -type f | head -1)
@@ -294,16 +426,95 @@ fi
 exec "$GBIN" "$@"
 """)
     gradlew.chmod(0o755)
-    console.print("[green]✓ Hello World scaffolded — press 'b' to build, 'd' to deploy via USB[/green]")
+    console.print("[green]✓ Kotlin Hello World scaffolded[/green]")
 
-# ── New Kotlin file ────────────────────────────────────────────────────────────
-def do_new_file(root: Path):
-    name = input("New Kotlin class name: ").strip()
-    if not name: return
-    if not name[0].isupper(): name = name[0].upper() + name[1:]
-    if name.endswith(".kt"): name = name[:-3]
-    pkg = get_package(root)
-    content = f"""package {pkg}
+def scaffold_flutter(root: Path):
+    console.print(f"[yellow]▶ Scaffolding Flutter Hello World at {root}[/yellow]")
+    if shutil.which("flutter"):
+        run(["flutter", "create", "--org", "com.tmdev012",
+             "--project-name", root.name, str(root)],
+            label="flutter create")
+    else:
+        console.print("[red]flutter not found in PATH[/red]")
+        console.print("[dim]Install: https://docs.flutter.dev/get-started/install/linux[/dim]")
+
+def scaffold_rn(root: Path):
+    console.print(f"[yellow]▶ Scaffolding React Native Hello World at {root}[/yellow]")
+    if shutil.which("npx"):
+        run(["npx", "@react-native-community/cli", "init",
+             root.name, "--directory", str(root)],
+            label="npx react-native init")
+    else:
+        console.print("[red]npx not found — install Node.js[/red]")
+
+def do_scaffold(root: Path, fw: FW):
+    if fw == FW.FLUTTER:
+        scaffold_flutter(root)
+    elif fw == FW.RN:
+        scaffold_rn(root)
+    else:
+        scaffold_kotlin(root)
+
+# ── New source file ────────────────────────────────────────────────────────────
+def do_new_file(root: Path, fw: FW, name: str = ""):
+    if not name:
+        name = input("New file name (class/component): ").strip()
+    if not name:
+        return
+
+    if fw == FW.FLUTTER:
+        if not name.endswith(".dart"):
+            name = name.lower().replace(" ", "_") + ".dart"
+        target = root / "lib" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        cls = "".join(w.capitalize() for w in name[:-5].split("_"))
+        target.write_text(f"""\
+import 'package:flutter/material.dart';
+
+class {cls} extends StatelessWidget {{
+  const {cls}({{super.key}});
+
+  @override
+  Widget build(BuildContext context) {{
+    return const Center(child: Text('Hello from {cls}'));
+  }}
+}}
+""")
+        console.print(f"[green]✓ Created lib/{name}[/green]")
+
+    elif fw == FW.RN:
+        if not name.endswith(".tsx"):
+            name = name[0].upper() + name[1:] + ".tsx"
+        target = root / name
+        cls    = name[:-4]
+        target.write_text(f"""\
+import React from 'react';
+import {{View, Text, StyleSheet}} from 'react-native';
+
+const {cls}: React.FC = () => (
+  <View style={{styles.container}}>
+    <Text>Hello from {cls}</Text>
+  </View>
+);
+
+const styles = StyleSheet.create({{
+  container: {{flex: 1, alignItems: 'center', justifyContent: 'center'}},
+}});
+
+export default {cls};
+""")
+        console.print(f"[green]✓ Created {name}[/green]")
+
+    else:
+        if name[0].islower():
+            name = name[0].upper() + name[1:]
+        if name.endswith(".kt"):
+            name = name[:-3]
+        pkg    = get_package(root)
+        target = root / f"app/src/main/kotlin/{pkg.replace('.','/')}/{name}.kt"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(f"""\
+package {pkg}
 
 import android.os.Bundle
 import android.widget.TextView
@@ -313,95 +524,198 @@ class {name} : AppCompatActivity() {{
     override fun onCreate(savedInstanceState: Bundle?) {{
         super.onCreate(savedInstanceState)
         val tv = TextView(this).apply {{
-            text = "Hello from {name}\\n\\nGenerated by Sashi Android Studio v2.0"
+            text = "Hello from {name}"
             textSize = 18f
             setPadding(64, 120, 64, 0)
         }}
         setContentView(tv)
     }}
 }}
-"""
-    rel = f"app/src/main/kotlin/{pkg.replace('.', '/')}/{name}.kt"
-    target = root / rel
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content)
-    console.print(f"[green]✓ Created {rel}[/green]")
+""")
+        console.print(f"[green]✓ Created {target.relative_to(root)}[/green]")
 
-# ── Main menu ─────────────────────────────────────────────────────────────────
-def main():
-    import argparse
-    ap = argparse.ArgumentParser(description="Sashi Android Studio — Terminal Android/Kotlin IDE")
-    ap.add_argument("project", nargs="?", default=str(Path.home() / "projects/hello-android"))
-    args = ap.parse_args()
+# ── IDE open ──────────────────────────────────────────────────────────────────
+def do_open_ide(root: Path, ide: str):
+    """Open project in an external IDE."""
+    cmds = {
+        "code":    ["code", str(root)],
+        "idea":    ["idea", str(root)],
+        "studio":  ["android-studio", str(root)],
+        "pycharm": ["pycharm", str(root)],
+        "nano":    ["nano", str(root)],
+        "vim":     ["vim", str(root)],
+    }
+    cmd = cmds.get(ide.lower())
+    if cmd and shutil.which(cmd[0]):
+        subprocess.Popen(cmd)
+        console.print(f"[green]✓ Opened in {ide}[/green]")
+    else:
+        found = [k for k, v in cmds.items() if shutil.which(v[0])]
+        console.print(f"[red]{ide} not found in PATH[/red]")
+        if found:
+            console.print(f"[dim]Available: {', '.join(found)}[/dim]")
 
-    root = Path(args.project).expanduser().resolve()
-    if not root.exists():
-        scaffold_hello_world(root)
+# ── Status banner ─────────────────────────────────────────────────────────────
+def show_status(root: Path, fw: FW):
+    adb = adb_cmd()
+    fw_colors = {FW.KOTLIN: "bright_yellow", FW.FLUTTER: "cyan",
+                 FW.RN: "bright_blue", FW.UNKNOWN: "dim"}
+    console.print(
+        f"\n[bold green] ⚡ Sashi Android Studio v5.3.0[/bold green]  "
+        f"[dim]{root}[/dim]"
+    )
+    console.print(
+        f"  Framework: [{fw_colors[fw]}]{fw.value}[/{fw_colors[fw]}]  "
+        f"  adb: {'[green]found[/green]' if adb else '[yellow]not found[/yellow]'}"
+    )
 
-    files      = scan_files(root)
-    open_file  = files[0] if files else None
+    if adb:
+        devs = adb_devices(adb)
+        if devs:
+            console.print(f"  Devices:   [green]{', '.join(devs)}[/green]")
+        else:
+            console.print("  Devices:   [dim]none connected[/dim]")
 
-    console.print(f"\n[bold green] ⚡ Sashi Android Studio v2.0[/bold green]  [dim]{root}[/dim]")
-    console.print(f"[dim]  {len(files)} files · adb: {'[green]found[/green]' if adb_cmd() else '[yellow]not found[/yellow]'}[/dim]\n")
-
-    MENU = """[bold]MENU[/bold]
+# ── Interactive TUI ───────────────────────────────────────────────────────────
+MENU_TEXT = """\
+[bold]MENU[/bold]
   [cyan]f[/cyan]  browse files        [cyan]v <n>[/cyan]  view file #n
-  [cyan]b[/cyan]  build APK           [cyan]t[/cyan]     run tests
-  [cyan]d[/cyan]  deploy to phone     [cyan]D[/cyan]     git diff
-  [cyan]a[/cyan]  AI assist           [cyan]n[/cyan]     new Kotlin file
-  [cyan]e[/cyan]  open in $EDITOR     [cyan]q[/cyan]     quit"""
+  [cyan]b[/cyan]  build               [cyan]t[/cyan]     test
+  [cyan]d[/cyan]  deploy USB          [cyan]W <ip>[/cyan] deploy WiFi
+  [cyan]a[/cyan]  AI assist           [cyan]n[/cyan]     new file
+  [cyan]D[/cyan]  git diff            [cyan]o <ide>[/cyan] open in IDE
+  [cyan]e[/cyan]  env vars            [cyan]s[/cyan]     scaffold Hello World
+  [cyan]q[/cyan]  quit"""
 
-    console.print(MENU)
+def interactive(root: Path, fw: FW):
+    show_status(root, fw)
+    files     = scan_files(root)
+    open_file = files[0] if files else None
+    console.print(MENU_TEXT)
 
     while True:
         try:
-            cmd = input("\n[sas]> ").strip().lower()
+            cmd = input("\n[sas]> ").strip()
         except (EOFError, KeyboardInterrupt):
             break
 
         if not cmd:
             continue
-        elif cmd == "q":
+        parts = cmd.split()
+        raw   = parts[0]
+        c     = raw.lower()
+
+        if c == "q":
             break
-        elif cmd == "f":
+        elif c == "f":
             files = scan_files(root)
             show_files(root, files)
-        elif cmd.startswith("v"):
-            parts = cmd.split()
-            if len(parts) == 2 and parts[1].isdigit():
-                idx = int(parts[1]) - 1
-                if 0 <= idx < len(files):
-                    open_file = files[idx]
-                    view_file(open_file, root)
-                else:
-                    console.print("[red]Invalid file number[/red]")
+        elif c == "v" and len(parts) == 2 and parts[1].isdigit():
+            idx = int(parts[1]) - 1
+            if 0 <= idx < len(files):
+                open_file = files[idx]
+                view_file(open_file, root)
             else:
-                console.print("[dim]Usage: v <number>  e.g. v 3[/dim]")
-        elif cmd == "b":
-            do_build(root)
-        elif cmd == "t":
-            do_test(root)
-        elif cmd == "d":
-            do_deploy(root)
-        elif cmd == "D":
+                console.print("[red]Invalid file number[/red]")
+        elif c == "b":
+            do_build(root, fw)
+        elif c == "t":
+            do_test(root, fw)
+        elif raw == "D":
             do_diff(root, open_file)
-        elif cmd == "a":
+        elif c == "d":
+            do_deploy(root, fw, "usb")
+        elif c == "w" and len(parts) == 2:
+            do_deploy(root, fw, f"wifi:{parts[1]}")
+        elif c == "a":
             do_ai(open_file)
-        elif cmd == "n":
-            do_new_file(root)
+        elif c == "n":
+            do_new_file(root, fw)
             files = scan_files(root)
-        elif cmd == "e":
-            if open_file:
-                editor = os.environ.get("EDITOR", "nano")
-                subprocess.run([editor, str(open_file)])
-            else:
-                console.print("[yellow]No file open — use v <n> first[/yellow]")
-        elif cmd in ("?", "h", "help"):
-            console.print(MENU)
+        elif c == "o" and len(parts) == 2:
+            do_open_ide(root, parts[1])
+        elif c == "s":
+            do_scaffold(root, fw)
+            files = scan_files(root)
+        elif c == "e":
+            env_list()
+        elif c in ("?", "h", "help"):
+            console.print(MENU_TEXT)
         else:
-            console.print(f"[dim]Unknown command '{cmd}' — type ? for help[/dim]")
+            console.print(f"[dim]Unknown '{cmd}' — ? for help[/dim]")
 
     console.print("[bold green]Sashi Android Studio closed.[/bold green]")
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+def main():
+    ap = argparse.ArgumentParser(
+        prog="sashi android-studio",
+        description="Sashi Android Studio v5.3.0 — Terminal IDE (Kotlin/Flutter/TypeScript)",
+    )
+    ap.add_argument("project", nargs="?",
+                    default=str(Path.home() / "projects/hello-android"),
+                    help="Project directory (default: ~/projects/hello-android)")
+    ap.add_argument("--framework", "-F", choices=["kotlin","flutter","typescript"],
+                    help="Override framework detection")
+    ap.add_argument("--build", action="store_true",   help="Build (headless)")
+    ap.add_argument("--test",  action="store_true",   help="Run tests (headless)")
+    ap.add_argument("--deploy", metavar="TARGET",
+                    help="Deploy headless: usb | wifi:<ip>[:<port>]")
+    ap.add_argument("--scaffold", action="store_true",
+                    help="Scaffold Hello World project if missing")
+    ap.add_argument("--new-file", metavar="NAME",     help="Create new source file")
+    ap.add_argument("--open-ide", metavar="IDE",
+                    help="Open in IDE: code | idea | studio | pycharm | vim")
+    ap.add_argument("--env-list",  action="store_true", help="List env vars")
+    ap.add_argument("--env-set",   nargs=2, metavar=("KEY","VAL"), help="Set env var")
+    ap.add_argument("--env-get",   metavar="KEY",       help="Get env var")
+    ap.add_argument("--status",    action="store_true", help="Show project status")
+    args = ap.parse_args()
+
+    root = Path(args.project).expanduser().resolve()
+
+    fw = FW(args.framework) if args.framework else detect_framework(root)
+
+    # ── Env operations (no project needed) ───────────────────────────────────
+    if args.env_list:
+        env_list(); return
+    if args.env_set:
+        env_set(args.env_set[0], args.env_set[1]); return
+    if args.env_get:
+        env_get(args.env_get); return
+
+    # ── Scaffold if requested or missing ─────────────────────────────────────
+    if args.scaffold or not root.exists():
+        do_scaffold(root, fw)
+        fw = detect_framework(root)
+
+    # ── Headless operations (exit with build code) ────────────────────────────
+    headless = args.build or args.test or args.deploy or \
+               args.new_file or args.open_ide or args.status
+
+    if args.status:
+        show_status(root, fw); return
+
+    if args.build:
+        ok = do_build(root, fw)
+        sys.exit(0 if ok else 1)
+
+    if args.test:
+        ok = do_test(root, fw)
+        sys.exit(0 if ok else 1)
+
+    if args.deploy:
+        ok = do_deploy(root, fw, args.deploy)
+        sys.exit(0 if ok else 1)
+
+    if args.new_file:
+        do_new_file(root, fw, args.new_file); return
+
+    if args.open_ide:
+        do_open_ide(root, args.open_ide); return
+
+    # ── Interactive mode ──────────────────────────────────────────────────────
+    interactive(root, fw)
 
 if __name__ == "__main__":
     main()
