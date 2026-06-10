@@ -60,3 +60,9 @@ Music/
 Pictures/
 Videos/
 Downloads/
+
+# local runtime / evidence noise
+data/
+evidence/
+old-archive/untracked-*/
+scripts/code-review-log
