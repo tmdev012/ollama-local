@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SASHI_ROOT="${SASHI_ROOT:-$HOME/sashi-ide}"
+source "$SASHI_ROOT/env/sashi-env.sh" 2>/dev/null || true
+
+ensure_dirs() {
+  mkdir -p "$SASHI_ROOT/cache/jobs" "$SASHI_ROOT/archive" "$SASHI_ROOT/evidence" "$SASHI_ROOT/logs"
+}
+
+provider_status() {
+  awk -F '\t' 'NR>1 {print $1 "\t" $2 "\t" $3 "\t" $4}' "$SASHI_ROOT/registry/providers.tsv" |
+  while IFS=$'\t' read -r id type req cmd; do
+    if bash -lc "$cmd" >/dev/null 2>&1; then st=ok; else st=missing; fi
+    printf '%-14s %-8s required=%-3s %s\n' "$id" "$type" "$req" "$st"
+  done
+}
+
+provider_ask() {
+  local provider="$1"; shift
+  local prompt="$*"
+  export SASHI_PROMPT="$prompt"
+
+  local line cmd
+  line="$(awk -F '\t' -v p="$provider" 'NR>1 && $1==p {print $0}' "$SASHI_ROOT/registry/providers.tsv" || true)"
+
+  if [ -z "$line" ]; then
+    echo "provider '$provider' not registered; falling back to none"
+    provider="none"
+    line="$(awk -F '\t' '$1=="none" {print $0}' "$SASHI_ROOT/registry/providers.tsv")"
+  fi
+
+  cmd="$(printf '%s\n' "$line" | awk -F '\t' '{print $5}')"
+
+  if ! bash -lc "$cmd"; then
+    echo "provider '$provider' failed; falling back to none"
+    SASHI_PROMPT="$prompt" bash -lc 'printf "%s\n" "NO_PROVIDER: $SASHI_PROMPT"'
+  fi
+}
+
+roadworthy() {
+  local run_id evidence failed=0
+  run_id="$(date +%Y%m%d-%H%M%S)"
+  evidence="$SASHI_ROOT/evidence/$run_id"
+  mkdir -p "$evidence"
+
+  echo -e "id\trequired\tresult" > "$evidence/results.tsv"
+
+  while IFS=$'\t' read -r id req cmd; do
+    [ "$id" = "id" ] && continue
+    if bash -lc "$cmd" >/dev/null 2>&1; then
+      echo -e "$id\t$req\tPASS" | tee -a "$evidence/results.tsv"
+    else
+      echo -e "$id\t$req\tFAIL" | tee -a "$evidence/results.tsv"
+      [ "$req" = "yes" ] && failed=1
+    fi
+  done < "$SASHI_ROOT/registry/roadworthy-tests.tsv"
+
+  echo "$evidence"
+  exit "$failed"
+}
+
+legacy_sashi() {
+  local legacy
+  legacy="$(cat "$SASHI_ROOT/registry/legacy-sashi.path" 2>/dev/null || true)"
+  if [ -n "$legacy" ] && [ -x "$legacy" ]; then
+    exec "$legacy" "$@"
+  fi
+  echo "No legacy Sashi route found for: $*" >&2
+  exit 127
+}
+
+case "${1:-help}" in
+  ide)
+    ensure_dirs
+    case "${2:-doctor}" in
+      doctor)
+        echo "SASHI_ROOT=$SASHI_ROOT"
+        test -s "$SASHI_ROOT/registry/providers.tsv"
+        test -d "$SASHI_ROOT/cache/jobs"
+        test -d "$SASHI_ROOT/archive"
+        echo "ide: ok"
+        ;;
+      run)
+        echo "SASHI IDE ready."
+        echo "Provider optional. Try: sashi provider list"
+        ;;
+      *)
+        echo "Unknown ide command: ${2:-}" >&2
+        exit 2
+        ;;
+    esac
+    ;;
+  provider)
+    case "${2:-list}" in
+      list) provider_status ;;
+      *) echo "Unknown provider command"; exit 2 ;;
+    esac
+    ;;
+  ask)
+    provider="none"
+    if [ "${2:-}" = "--provider" ]; then
+      provider="${3:-none}"
+      shift 3
+    else
+      shift
+    fi
+    provider_ask "$provider" "$@"
+    ;;
+  cache)
+    ensure_dirs
+    case "${2:-}" in
+      enqueue)
+        shift 2
+        id="$(date +%Y%m%d-%H%M%S).job"
+        printf '%s\n' "$*" > "$SASHI_ROOT/cache/jobs/$id"
+        echo "$SASHI_ROOT/cache/jobs/$id"
+        ;;
+      list)
+        ls -1 "$SASHI_ROOT/cache/jobs" 2>/dev/null || true
+        ;;
+      *) echo "Unknown cache command"; exit 2 ;;
+    esac
+    ;;
+  archive)
+    ensure_dirs
+    case "${2:-dry-run}" in
+      dry-run)
+        echo "archive dry-run ok: $SASHI_ROOT/archive"
+        ;;
+      commit-smoke)
+        f="$SASHI_ROOT/archive/smoke-$(date +%Y%m%d-%H%M%S).txt"
+        echo smoke > "$f"
+        echo "$f"
+        ;;
+      *) echo "Unknown archive command"; exit 2 ;;
+    esac
+    ;;
+  evidence)
+    case "${2:-latest}" in
+      latest) ls -td "$SASHI_ROOT/evidence"/* 2>/dev/null | head -1 || true ;;
+      *) echo "Unknown evidence command"; exit 2 ;;
+    esac
+    ;;
+  roadworthy)
+    roadworthy
+    ;;
+  android-studio|adb)
+    shift
+    legacy_sashi "$@"
+    ;;
+  help|*)
+    cat <<HELP
+SASHI v0.5.0 roadworthy router
+
+Core:
+  sashi ide doctor
+  sashi ide run
+  sashi roadworthy
+
+Providers:
+  sashi provider list
+  sashi ask --provider none "prompt"
+  sashi ask --provider ollama "prompt"
+  sashi ask --provider gemini-cli "prompt"
+  sashi ask --provider antigravity "prompt"
+  sashi ask --provider openclaw "prompt"
+
+Cache/archive:
+  sashi cache enqueue "job"
+  sashi cache list
+  sashi archive dry-run
+  sashi archive commit-smoke
+  sashi evidence latest
+HELP
+    ;;
+esac

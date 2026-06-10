@@ -1,0 +1,4 @@
+{"task":"versioning","input":"provider adapters added; no breaking changes","expected":"minor bump; changelog Added + Safety sections"}
+{"task":"auto-doc","input":"roadworthy test T01 passes without provider","expected":"document providerless boot as baseline capability"}
+{"task":"audit","input":"archive dry-run before commit","expected":"write evidence path, action log, checksums"}
+{"task":"failover","input":"antigravity unavailable","expected":"continue with none/ollama provider and mark cloud lane unavailable"}

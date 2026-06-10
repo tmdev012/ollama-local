@@ -1,0 +1,6 @@
+id	type	required	status_cmd	ask_cmd	notes
+none	offline	no	true	printf '%s\n' "NO_PROVIDER: $SASHI_PROMPT"	providerless baseline
+ollama	local	no	command -v ollama >/dev/null	ollama run sashi-pmo-doc "$SASHI_PROMPT"	local PMO/doc worker
+gemini-cli	cloud	no	command -v gemini >/dev/null	gemini -p "$SASHI_PROMPT"	online Gemini worker
+antigravity	cloud	no	command -v antigravity >/dev/null	antigravity -p "$SASHI_PROMPT"	async Google agent lane
+openclaw	gateway	no	command -v openclaw >/dev/null	openclaw ask "$SASHI_PROMPT"	gateway/orchestrator lane

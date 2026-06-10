@@ -1,0 +1,10 @@
+id	required	command
+T01_BOOT_NO_PROVIDER	yes	sashi ide doctor --provider none
+T02_REGISTRY_PRESENT	yes	test -s "$SASHI_ROOT/registry/providers.tsv"
+T03_PROVIDER_DISCOVERY	yes	sashi provider list
+T04_PROVIDER_FAILOVER	yes	sashi ask --provider missing "hello"
+T05_CACHE_JOB	yes	sashi cache enqueue "version doc smoke"
+T06_ARCHIVE_DRYRUN	yes	sashi archive dry-run
+T07_EVIDENCE_WRITE	yes	sashi evidence latest
+T08_OLLAMA_MODELFILE	yes	test -s "$SASHI_ROOT/models/ollama/pmo-doc/Modelfile"
+T09_JSONL_DATASET	yes	test -s "$SASHI_ROOT/models/ollama/pmo-doc/pmo_tasks.jsonl"

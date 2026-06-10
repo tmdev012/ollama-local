@@ -18,3 +18,45 @@ __pycache__/
 # Build
 *.o
 tests/bats-core
+
+# SASHI safety ignores
+cache/
+sdk/
+archive/
+exports/
+evidence/*/
+logs/*.log
+
+# heavy/generated
+node_modules/
+__pycache__/
+.gradle/
+dist/
+build/
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+
+# secrets
+.env
+*.env
+*.pem
+*.key
+id_rsa
+id_ed25519
+credentials.json
+token.json
+
+# media should never enter SASHI repo
+*.mp3
+*.mp4
+*.wav
+*.flac
+*.webm
+*.part
+Music/
+Pictures/
+Videos/
+Downloads/
