@@ -11,12 +11,12 @@ tags:
 - instruction-tuning
 task_categories:
 - text-generation
-pretty_name: Sashi v3.2.3 Training Dataset
+pretty_name: Sashi v5.2.0 Training Dataset
 size_categories:
 - n<1K
 ---
 
-# Sashi v3.2.3 — Instruction Tuning Dataset
+# Sashi v5.2.0 — Instruction Tuning Dataset
 
 Training dialogs for fine-tuning llama3.2 (3B) and llama3.1 (8B) on the Sashi
 local-first AI shell assistant ecosystem.
@@ -25,8 +25,8 @@ local-first AI shell assistant ecosystem.
 
 | File | Dialogs | Coverage |
 |------|---------|----------|
-| `sashi_v3.2.3_master.jsonl` | **232** | All versions consolidated |
-| `training_sashi_v3.2.3.jsonl` | 37 | v3.2.3 new (file-write, file-ops, aliases) |
+| `sashi_v5.2.0_master.jsonl` | **232** | All versions consolidated |
+| `training_sashi_v5.2.0.jsonl` | 37 | v5.2.0 new (file-write, file-ops, aliases) |
 | `training_sashi_v3.2.0.jsonl` | 56 | v3.2.0 baseline |
 | `multi-ternary-80-examples.jsonl` | 79 | multi-ternary bash patterns |
 | `filewrite-grpc-60-examples.jsonl` | 60 | gRPC + file write patterns |
@@ -38,14 +38,14 @@ ChatML / HuggingFace messages format:
 ```json
 {
   "messages": [
-    {"role": "system", "content": "You are Sashi v3.2.3 ..."},
+    {"role": "system", "content": "You are Sashi v5.2.0 ..."},
     {"role": "user",   "content": "How do I write AI output to a file?"},
     {"role": "assistant", "content": "```bash\nsashi write output.md 'prompt'\n```..."}
   ]
 }
 ```
 
-## Coverage — v3.2.3
+## Coverage — v5.2.0
 
 - **LLM File Write System** (`sashi write` — 7 modes)
   - `--read` file→llama→write, `--append` flock-safe, `--batch` glob,
@@ -80,7 +80,7 @@ PARAMETER num_ctx 4096
 
 ```python
 from datasets import load_dataset
-ds = load_dataset("json", data_files="sashi_v3.2.3_master.jsonl", split="train")
+ds = load_dataset("json", data_files="sashi_v5.2.0_master.jsonl", split="train")
 ```
 
 Or with transformers/trl SFTTrainer (ChatML format, apply chat template).

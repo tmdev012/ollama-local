@@ -165,7 +165,7 @@ def _send(obj: dict) -> None:
 def handle_initialize(req_id, _params: dict) -> dict:
     return _reply(req_id, {
         "protocolVersion": "2024-11-05",
-        "serverInfo": {"name": "sashi", "version": "3.2.3"},
+        "serverInfo": {"name": "sashi", "version": "5.2.0"},
         "capabilities": {"tools": {}}
     })
 

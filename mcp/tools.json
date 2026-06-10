@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "version": "3.2.3",
+    "version": "5.2.0",
     "protocol": "MCP/1.0",
     "description": "Sashi MCP tool manifest — real tool definitions, not stubs",
     "server": "mcp/server.py",

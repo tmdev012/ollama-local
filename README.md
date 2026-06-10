@@ -1,11 +1,11 @@
-# SASHI v3.2.3 — Local-first AI Orchestration Layer
+# SASHI v5.2.0 — Local-first AI Orchestration Layer
 
 > **Sashi** is an AI-native CLI providing local LLM inference, MCP-compatible tool dispatch,
 > gRPC-backed project intelligence, and a structured agentic write pipeline.
 > Designed to run fully offline on constrained hardware. No GPU required.
 
 [![GitHub](https://img.shields.io/badge/GitHub-tmdev012%2Follama--local-blue)](https://github.com/tmdev012/ollama-local)
-[![Version](https://img.shields.io/badge/version-3.2.3-green)]()
+[![Version](https://img.shields.io/badge/version-5.2.0-green)]()
 [![License](https://img.shields.io/badge/license-MIT-yellow)]()
 
 ---
@@ -14,7 +14,7 @@
 
 - [Three-Repo Stack](#three-repo-stack)
 - [Incident Report: Unbound Variable (2026-03-11)](#incident-report-unbound-variable-2026-03-11)
-- [What v3.2.3 Is](#what-v323-is)
+- [What v5.2.0 Is](#what-v323-is)
 - [Architecture](#architecture)
 - [Models](#models)
 - [Variables Reference](#variables-reference)
@@ -38,7 +38,7 @@ stay in sync across all three before a push is authoritative.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     STACK OVERVIEW v3.2.3                           │
+│                     STACK OVERVIEW v5.2.0                           │
 │                                                                     │
 │  ollama-local/           kanban-pmo/          persist-memory-probe/ │
 │  ┌─────────────┐        ┌─────────────┐       ┌──────────────────┐  │
@@ -133,13 +133,13 @@ The fix is at the variable reference, not by removing `set -u`.
 
 ---
 
-## What v3.2.3 Is
+## What v5.2.0 Is
 
-v3.2.3 introduced a two-layer file I/O architecture and finalized the HuggingFace
+v5.2.0 introduced a two-layer file I/O architecture and finalized the HuggingFace
 training corpus. It is the first version where `sashi write` routes through the local
 model before committing output to disk.
 
-### New in v3.2.3
+### New in v5.2.0
 
 #### `sashi file` — 17 Structured File Operations
 
@@ -182,12 +182,12 @@ is `fast-sashi` (canonical 3B). Input truncated to 6000 chars to stay within con
 
 #### Training Corpus
 
-- `training/sashi_v3.2.3_master.jsonl` — 232 ChatML dialogs covering file-ops,
+- `training/sashi_v5.2.0_master.jsonl` — 232 ChatML dialogs covering file-ops,
   LLM write modes, and tool-dispatch patterns. Formatted for HuggingFace `datasets`.
 - `training/README.md` — dataset card with YAML frontmatter and schema documentation.
 - Both Modelfiles rebuilt: `fast-sashi:latest` (2.0GB) + `sashi-llama-8b:latest` (4.9GB)
 
-#### Bug Fixes in v3.2.3
+#### Bug Fixes in v5.2.0
 
 - **[CRITICAL]** `lib/sh/llm-write.sh` fallback model `sashi-llama-fast` corrected
   to canonical `fast-sashi` — silent failures on degraded-path writes eliminated.
@@ -202,7 +202,7 @@ is `fast-sashi` (canonical 3B). Input truncated to 6000 chars to stay within con
 
 ```
 ollama-local/
-├── sashi                       # Main CLI v3.2.3 (bash, set -uo pipefail)
+├── sashi                       # Main CLI v5.2.0 (bash, set -uo pipefail)
 ├── .env                        # Config: LOCAL_MODEL, OLLAMA_HOST, gRPC ports
 ├── .env.termux                 # Android override: LOCAL_MODEL=llama3.2:1b
 ├── Modelfile.fast              # fast-sashi 3B (default, concise system prompt)
@@ -213,8 +213,8 @@ ollama-local/
 │   └── history.db              # SQLite WAL (shared across all 3 repos)
 │
 ├── docs/
-│   ├── diagrams/               # SVGs: process-map, data-flow, smart-push (v3.2.3)
-│   └── sashi-v3.2.3-spec.md   # Architecture spec
+│   ├── diagrams/               # SVGs: process-map, data-flow, smart-push (v5.2.0)
+│   └── sashi-v5.2.0-spec.md   # Architecture spec
 │
 ├── lib/sh/
 │   ├── aliases.sh              # Single source for all shell aliases (sourced by .bashrc/.zshrc)
@@ -239,7 +239,7 @@ ollama-local/
 │   └── ollama-boost.sh         # CPU governor + performance tuning
 │
 ├── training/
-│   ├── sashi_v3.2.3_master.jsonl  # 232 ChatML training dialogs
+│   ├── sashi_v5.2.0_master.jsonl  # 232 ChatML training dialogs
 │   └── README.md               # HuggingFace dataset card
 │
 └── old-archive/                # Archived sessions (never deleted)
@@ -300,7 +300,7 @@ The 4-layer BDPM model spans all three repos. Diagram: `kanban-pmo/docs/diagrams
 
 **Stale models** (in `ollama list` but superseded):
 - `sashi-llama-fast:latest` — old name for `fast-sashi`, do not use
-- `turbo-llama`, `fast-llama`, `sashi-llama` — pre-v3.2.3 iterations
+- `turbo-llama`, `fast-llama`, `sashi-llama` — pre-v5.2.0 iterations
 
 Rebuild canonical models:
 ```bash
@@ -342,7 +342,7 @@ All variables sourced from `.env` at startup. Override individually via environm
 |----------|----------|---------|
 | `SCRIPT_DIR` | `${BASH_SOURCE[0]}` | Absolute path to repo root |
 | `_OS_TYPE` | `uname -o` | Platform: `Android` or `GNU/Linux` |
-| `VERSION` | hardcoded `3.2.3` | Current version |
+| `VERSION` | hardcoded `5.2.0` | Current version |
 | `DB_PATH` | `${SASHI_DB:-$SCRIPT_DIR/db/history.db}` | Active DB path |
 | `MODEL` | `${LOCAL_MODEL:-llama3.2}` | Active inference model |
 | `OLLAMA_API` | `${OLLAMA_HOST:-http://localhost:11434}` | Active API base |
@@ -670,7 +670,7 @@ CREATE TABLE changelog (
 
 ## JSONL Training Schema
 
-Training data at `training/sashi_v3.2.3_master.jsonl`.
+Training data at `training/sashi_v5.2.0_master.jsonl`.
 Format: ChatML — compatible with HuggingFace `datasets`, llama.cpp fine-tuning, and
 direct Modelfile `TEMPLATE` injection.
 
@@ -712,7 +712,7 @@ artifact, not just documentation.
 | v3.2.0 | 2026-02-22 | gRPC daemon manager, probe CLI, terminal IDE, 8B routing |
 | v3.2.1 | 2026-03-01 | `sashi usb/wifi/hf`, USB vendor DB, WiFi ADB, HuggingFace fallback |
 | v3.2.2 | 2026-03-01 | 30 filesystem aliases, `sashi wallog`, SVGs synced |
-| **v3.2.3** | **2026-03-01** | **file-ops.sh (516L), llm-write.sh (227L), 232 training dialogs** |
+| **v5.2.0** | **2026-03-01** | **file-ops.sh (516L), llm-write.sh (227L), 232 training dialogs** |
 | fix | 2026-03-11 | TERMUX_VERSION unbound var → `_OS_TYPE` from `uname -o` (c5af357) |
 
 ---
